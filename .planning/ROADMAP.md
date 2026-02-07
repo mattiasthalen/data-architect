@@ -45,11 +45,11 @@ Plans:
   3. `architect init --dry-run` prints what would be created without writing any files to disk
   4. `architect init --dir /some/path` scaffolds into the specified directory instead of cwd
   5. `architect init --help` displays usage with examples; common failures (not writable, missing dir) produce human-readable error messages
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md — Scaffold engine (TDD): pure functions, file manifest, conflict handling, dry-run
+- [ ] 02-02-PLAN.md — Typer CLI wiring, symbol output, error handling, integration tests
 
 ### Phase 3: Agent Definitions + OpenCode Integration
 **Goal**: All six agent definitions and supporting OpenCode configuration are scaffolded by `architect init` and recognized by OpenCode as a working agent team
@@ -91,7 +91,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Project Foundation | 2/2 | Complete | 2026-02-07 |
-| 2. CLI Scaffolding | 0/0 | Not started | - |
+| 2. CLI Scaffolding | 0/2 | Not started | - |
 | 3. Agent Definitions + OpenCode Integration | 0/0 | Not started | - |
 | 4. Agent Quality + Modeling Workflows | 0/0 | Not started | - |
 
