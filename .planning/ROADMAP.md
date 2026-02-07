@@ -29,11 +29,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Pre-commit hooks reject a commit with a type error, a lint violation, or a non-conventional commit message
   4. CI pipeline on a pull request runs lint + type + test and reports pass/fail status
   5. Package version is derived from git tags -- no hardcoded version string exists anywhere in source
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — Package skeleton with pyproject.toml, source stubs, and TDD tests
+- [ ] 01-02-PLAN.md — Makefile, git hooks, CI workflow, and full pipeline validation
 
 ### Phase 2: CLI Scaffolding
 **Goal**: Users can run `architect init` and get files scaffolded into their project directory with clear feedback, idempotent behavior, and helpful errors
@@ -90,7 +90,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Project Foundation | 0/0 | Not started | - |
+| 1. Project Foundation | 0/2 | Planned | - |
 | 2. CLI Scaffolding | 0/0 | Not started | - |
 | 3. Agent Definitions + OpenCode Integration | 0/0 | Not started | - |
 | 4. Agent Quality + Modeling Workflows | 0/0 | Not started | - |
