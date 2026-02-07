@@ -1,420 +1,653 @@
-# Technology Stack
+# Stack Research
 
-**Project:** Warehouse Architect
-**Domain:** Claude Code skill (multi-agent orchestration, YAML/JSON specs, deterministic code generation)
+**Domain:** Python CLI tool + OpenCode.ai agent scaffolding (data warehouse design)
 **Researched:** 2026-02-07
-**Overall confidence:** MEDIUM-HIGH
+**Confidence:** HIGH (core stack verified from official docs; OpenCode agent format confirmed)
 
 ## Executive Summary
 
-Building a Claude Code skill for data warehouse design requires three distinct technology layers: the Claude Agent SDK for multi-agent orchestration, schema validation libraries for YAML/JSON specifications, and template engines for deterministic code generation. This stack prioritizes TypeScript for the full pipeline, enabling type safety from specification through code generation.
+This stack supports a Python CLI tool (`architect`) that scaffolds OpenCode.ai agent definitions and generates deterministic data warehouse scripts. The project mandates pure functional Python (no classes), TDD, UV for package management, and dynamic versioning from git tags. Every technology choice below is driven by these constraints.
 
-**Key decision:** TypeScript over Python for the agent layer. While Python dominates traditional AI development, the Claude Agent SDK has first-class TypeScript support, and TypeScript's type system provides compile-time validation for both specifications and generated code.
+The stack is centered on the Astral ecosystem (UV + Ruff + ty) for tooling, Typer for the CLI, frozen dataclasses for immutable data, Hatchling + uv-dynamic-versioning for builds, and pytest + Hypothesis for testing. OpenCode.ai agent definitions are Markdown files with YAML frontmatter, placed in `.opencode/agents/`.
+
+## OpenCode.ai Agent Format (CRITICAL)
+
+**Confidence: HIGH** -- Verified from official OpenCode.ai documentation (https://opencode.ai/docs/agents/, https://opencode.ai/docs/config/, https://opencode.ai/docs/skills/, https://opencode.ai/docs/rules/).
+
+OpenCode (v1.1.53, by SST, 99.7k GitHub stars) defines agents as **Markdown files with YAML frontmatter**. This is the format `architect init` must produce.
+
+### Directory Structure
+
+```
+.opencode/
+  agents/
+    data-architect.md       # Agent definitions (Markdown + YAML frontmatter)
+    system-analyst.md
+    business-analyst.md
+    data-engineer.md
+    analytics-engineer.md
+    veteran-reviewer.md
+  skills/
+    clp-debate/
+      SKILL.md              # Reusable skill for CLP workflow
+    anchor-modeling/
+      SKILL.md              # Reusable skill for AM rules
+  opencode.json             # Project-level OpenCode configuration (optional)
+AGENTS.md                   # Project-level rules/instructions (root of project)
+```
+
+### Agent Definition Format
+
+Each agent is a `.md` file in `.opencode/agents/`. The filename becomes the agent identifier.
+
+```markdown
+---
+description: "Brief explanation of agent purpose" # REQUIRED
+mode: primary|subagent|all                        # REQUIRED
+model: provider/model-id                          # Optional, defaults to global
+temperature: 0.0-1.0                              # Optional
+tools:                                            # Optional, inherits global defaults
+  write: true|false
+  edit: true|false
+  bash: true|false
+  skill: true|false
+  mymcp_*: true|false                             # Wildcard support
+permission:                                       # Optional, overrides global settings
+  edit: ask|allow|deny
+  bash:
+    "*": ask
+    "git status *": allow
+  task:                                           # Controls subagent invocation
+    "*": deny
+    "agent-name": ask
+top_p: 0.0-1.0                                   # Optional
+disable: true|false                               # Optional
+hidden: true|false                                # Optional, hide from @ menu
+color: "#hex" or theme-color-name                 # Optional
+steps: number                                     # Optional, max agentic iterations
+prompt: path/to/system-prompt.md                  # Optional, custom system prompt path
+---
+
+System prompt / persona content goes here as Markdown body.
+This is the agent's instruction set.
+```
+
+### Agent Modes
+
+| Mode | Purpose | Behavior |
+|------|---------|----------|
+| `primary` | Top-level agents users interact with directly | Shown in Tab switcher (like built-in `build` and `plan`) |
+| `subagent` | Specialist agents invoked by other agents | Invoked via `@agent-name` notation or Task tool |
+| `all` | Available in both contexts | Can be used directly or as subagent |
+
+### Skill Format
+
+Skills are reusable instruction sets loaded on-demand via the `skill` tool.
+
+```
+.opencode/skills/<skill-name>/SKILL.md
+```
+
+```markdown
+---
+name: "skill-name"          # REQUIRED, 1-64 chars, lowercase alphanumeric + hyphens
+description: "Purpose"      # REQUIRED, 1-1024 chars
+license: "MIT"              # Optional
+compatibility: "opencode"   # Optional
+metadata:                   # Optional, custom key-value pairs
+  version: "1.0"
+---
+
+Skill instructions as Markdown body.
+```
+
+### Configuration (opencode.json)
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "anthropic/claude-sonnet-4-5",
+  "agent": {
+    "data-architect": {
+      "description": "Entry point agent for warehouse design",
+      "mode": "primary",
+      "model": "anthropic/claude-sonnet-4-5"
+    }
+  },
+  "instructions": ["AGENTS.md"],
+  "tools": { "write": true, "bash": true },
+  "permission": { "edit": "ask", "bash": "ask" }
+}
+```
+
+### Design Implications for `architect init`
+
+1. **Output is pure text files** -- Markdown + YAML frontmatter + JSON. No binary formats, no compilation.
+2. **Agent identity = filename** -- `data-architect.md` creates agent `data-architect`.
+3. **Personas live in Markdown body** -- The system prompt IS the Markdown content after frontmatter.
+4. **Skills are separate from agents** -- CLP debate rules, Anchor Modeling rules should be skills, not baked into agent prompts.
+5. **Configuration merges** -- `opencode.json` in project root merges with user's global config. Don't override user settings.
+6. **Rules file at root** -- `AGENTS.md` at project root provides shared context across all agents.
 
 ## Recommended Stack
 
-### Core Agent Framework
+### Core Technologies
 
 | Technology | Version | Purpose | Why Recommended | Confidence |
 |------------|---------|---------|-----------------|------------|
-| **@anthropic-ai/claude-agent-sdk** | latest | Multi-agent orchestration engine | Official Claude Agent SDK with built-in tools (Read, Write, Edit, Bash, Glob, Grep), subagent support, hooks system, and session management. First-class TypeScript support. | HIGH |
-| **Node.js** | 18+ | Runtime environment | Required by Claude Agent SDK. LTS versions ensure stability. | HIGH |
-| **TypeScript** | 5.5+ | Type system for agent code | Zod requires 5.5+. Provides compile-time safety for agent orchestration logic, skill definitions, and generated code. Officially surpassed Python in 2025 GitHub language report. | HIGH |
+| **Python** | >=3.13 | Runtime | 3.13 is current stable (3.13.12, Feb 2026). 3.14 exists but too new for broad compatibility. 3.13 has improved error messages, `typing` improvements. | HIGH |
+| **UV** | >=0.10.0 | Package management, build orchestration, Python version management | Astral's all-in-one tool replaces pip, poetry, pyenv, virtualenv. 10-100x faster than pip. Cross-platform lockfile. Official GitHub Actions support. De facto standard for new Python projects in 2026. | HIGH |
+| **Typer** | >=0.21.0 | CLI framework for `architect` command | Function-based (no classes required). Type-hint driven. Built on Click. Auto-generates `--help`. Supports subcommands natively (`architect init`, `architect generate`). Ideal for functional Python style. | HIGH |
+| **Hatchling** | >=1.28.0 | Build backend | UV's recommended build backend. PEP 517 compliant. Extensible via plugins (uv-dynamic-versioning). Used by FastAPI, Pydantic, and other major projects. | HIGH |
 
-**Rationale:** The Claude Agent SDK is the authoritative framework for building Claude Code skills. It provides the same tools, agent loop, and context management that power Claude Code itself. The SDK handles tool execution automatically - you don't implement the tool loop. Built-in subagent support enables the multi-agent pattern (Data Architect, Data Engineer, etc.) without custom orchestration code.
-
-### Schema Definition & Validation
-
-| Technology | Version | Purpose | Why Recommended | Confidence |
-|------------|---------|---------|-----------------|------------|
-| **Zod** | 4.3+ | Runtime schema validation with TypeScript inference | TypeScript-first design. Bidirectional: schema → TypeScript types AND TypeScript types → validation. Simpler API than Ajv for spec validation. Supports complex refinements for business rules (e.g., anchor modeling constraints). | HIGH |
-| **js-yaml** | 4.1+ | YAML parsing/serialization | Standard YAML parser for JavaScript. Fast PyYAML port completely rewritten. Supports YAML 1.2 spec. | MEDIUM |
-| **@types/js-yaml** | 4.0+ | TypeScript definitions for js-yaml | Provides type safety for YAML operations. | MEDIUM |
-
-**Rationale:** Zod over Ajv because Zod's TypeScript-first design means schemas ARE types. With Ajv, you define JSON Schema separately and TypeScript types separately. With Zod, `const AnchorSchema = z.object({...})` defines both. `type Anchor = z.infer<typeof AnchorSchema>` extracts the TypeScript type. This is critical for a specification system where you want compile-time safety.
-
-**Alternative:** Ajv (8.17+) is faster for high-volume validation and supports JSON Schema draft 2020-12. Choose Ajv if performance profiling shows Zod is a bottleneck, or if you need to publish JSON Schemas as an open standard. Ajv's JSONSchemaType utility provides TypeScript integration but requires maintaining parallel schema and type definitions.
-
-### Template Engines for Code Generation
-
-| Technology | Version | Purpose | When to Use | Confidence |
-|------------|---------|---------|-------------|------------|
-| **Nunjucks** | 3.2+ | SQL DDL generation, dbt model generation | Primary template engine. Template inheritance for reusable SQL blocks (e.g., base anchor table template → specific anchor instances). Built-in async support. Fine whitespace control for readable generated SQL. | MEDIUM-HIGH |
-| **Handlebars** | 4.7+ | Simple substitution templates (Mermaid diagrams, config files) | Simpler syntax than Nunjucks. Use for non-SQL generation where inheritance isn't needed. Precompiled templates for faster runtime. | MEDIUM |
-| **ts-morph** | 24+ | TypeScript code generation (if generating TypeScript utilities) | Programmatic AST manipulation. Use if generating TypeScript code alongside SQL. Wraps TypeScript Compiler API with ergonomic methods. | MEDIUM |
-
-**Rationale:** Nunjucks over Handlebars for SQL generation because SQL generation requires template inheritance. You'll define a base template for anchor tables (with standard historization columns, effective dates, etc.), then extend it for each specific anchor. Nunjucks provides `{% extends %}` and `{% block %}` for this pattern. Handlebars requires custom helpers for inheritance.
-
-**Why templates over AST?** SQL doesn't have a standard TypeScript AST library. Template-based generation is the ecosystem standard. For reference: dbt Core uses Jinja (Python's Nunjucks) for SQL generation.
-
-**Whitespace matters in SQL.** Nunjucks provides explicit whitespace control (`{%- -%}` syntax) so generated SQL is readable in diffs and debugging. Handlebars doesn't.
-
-### Anchor Modeling & Data Warehouse Standards
+### Immutable Data & Functional Python
 
 | Technology | Version | Purpose | Why Recommended | Confidence |
 |------------|---------|---------|-----------------|------------|
-| **Anchor Modeler (reference)** | N/A | Conceptual reference for Anchor Modeling | Open-source tool by Roenbaeck on GitHub. Study the formalized translation rules (anchor → table, attribute → table, tie → table, knot → table). DO NOT use as a runtime dependency - it's a Java Swing GUI tool. Extract the modeling rules, not the tool. | MEDIUM |
-| **Custom YAML schema** | N/A | ADSS/Anchor specifications | Define your own YAML schema for anchors, attributes, ties, knots. Zod validates against your schema. Templates generate SQL from validated specs. | HIGH |
+| **`dataclasses` (stdlib, `frozen=True`)** | stdlib | Immutable data structures | No external dependency. `@dataclass(frozen=True)` prevents mutation. `dataclasses.replace()` for functional updates. Type-checker friendly. Sufficient for all project data models (specs, configs, agent defs). | HIGH |
+| **`typing` / `typing_extensions`** | stdlib | Type annotations for functional signatures | `TypeAlias`, `TypedDict`, `Protocol`, `NamedTuple` -- all support functional patterns without classes. `Callable` types for function composition. | HIGH |
+| **`functools` (stdlib)** | stdlib | Function composition, caching | `reduce`, `partial`, `lru_cache`, `@cache`. Standard library, no deps. | HIGH |
+| **`pathlib` (stdlib)** | stdlib | Immutable path handling | `Path` objects are immutable. Functional chaining (`path / "subdir" / "file.md"`). | HIGH |
 
-**Rationale:** Anchor Modeling has formalized rules for translating conceptual models to 6NF physical schemas. These rules are deterministic (1:1 mapping between symbols and tables). Your system should encode these rules in templates, not call external tools. The Anchor Modeler GitHub repo is a reference implementation - study it to understand the rules, then implement them in your templates.
+**Pattern: Pure functional Python without classes**
 
-**No off-the-shelf Anchor Modeling library for TypeScript exists.** You are building this. That's the value proposition of Warehouse Architect.
+```python
+from dataclasses import dataclass, replace
+from typing import Sequence
+
+# Immutable data (frozen dataclass, NOT a class with methods)
+@dataclass(frozen=True)
+class AgentDefinition:
+    name: str
+    description: str
+    mode: str
+    model: str | None = None
+    temperature: float | None = None
+
+# Pure function (NOT a method)
+def create_agent_markdown(agent: AgentDefinition) -> str:
+    """Pure function: AgentDefinition -> Markdown string."""
+    frontmatter = build_frontmatter(agent)
+    body = load_persona_template(agent.name)
+    return f"---\n{frontmatter}---\n\n{body}"
+
+# Functional update (NOT mutation)
+def with_model(agent: AgentDefinition, model: str) -> AgentDefinition:
+    return replace(agent, model=model)
+```
+
+**Why NOT external FP libraries (pyrsistent, Expression, pfun, etc.):**
+- Add dependency for minimal gain -- frozen dataclasses + stdlib cover 95% of needs
+- Team must learn non-standard APIs
+- Type checker support is weaker for exotic FP types
+- Pyrsistent's PVector/PMap are overkill for this domain (we're generating text files, not building persistent data structures)
+
+### Development Tools
+
+| Tool | Version | Purpose | Why Recommended | Confidence |
+|------|---------|---------|-----------------|------------|
+| **Ruff** | >=0.15.0 | Linting + formatting (replaces flake8, isort, black, pylint) | Single tool for lint + format. Written in Rust, extremely fast. 2026 style guide. Replaces 5+ tools. Astral ecosystem (same team as UV). | HIGH |
+| **Mypy** | >=1.19.0 | Static type checking in CI | Mature, well-understood, plugin ecosystem. Strict mode catches functional style violations. Industry standard for CI type checking. | HIGH |
+| **pytest** | >=9.0.0 | Test framework | De facto Python testing standard. Fixture system, parametrize, plugin ecosystem. Function-based (no test classes needed). | HIGH |
+| **Hypothesis** | >=6.151.0 | Property-based testing | Generates hundreds of test cases from strategies. Essential for testing deterministic generators (same input = same output). Tests edge cases humans miss. | HIGH |
+| **pytest-cov** | >=7.0.0 | Coverage reporting | Integrates coverage.py with pytest. Required for enforcing coverage thresholds. | HIGH |
+
+### Build & Versioning
+
+| Technology | Version | Purpose | Why Recommended | Confidence |
+|------------|---------|---------|-----------------|------------|
+| **uv-dynamic-versioning** | >=0.13.0 | Dynamic version from git tags | Hatchling plugin. Version derived from `git tag v0.1.0`. No hardcoded version strings. Works with `uv build`. Designed specifically for UV + Hatchling stack. | HIGH |
+| **Makefile** | N/A | Task runner | Universal, no extra deps. Targets: `bootstrap`, `lint`, `type`, `test`, `check`. Every developer knows Make. | HIGH |
 
 ### Supporting Libraries
 
 | Library | Version | Purpose | When to Use | Confidence |
 |---------|---------|---------|-------------|------------|
-| **mermaid** | 11+ | Diagram generation (ER diagrams, flowcharts) | Render conceptual models as Mermaid syntax, let Mermaid render to SVG. Supports class diagrams (for entities), ER diagrams (for relationships), sequence diagrams (for data flows). | HIGH |
-| **prettier** | 3+ | Format generated SQL/YAML/TypeScript | Ensures consistent output formatting. Supports SQL via prettier-plugin-sql. | HIGH |
-| **vitest** | 2+ | Testing framework | Fast, TypeScript-native, Vite-powered test runner. Test spec validation, template rendering, agent orchestration. | HIGH |
-| **tsx** | 4+ | TypeScript execution without compilation | Run TypeScript skills directly. Faster iteration during development. | MEDIUM |
+| **PyYAML** | >=6.0 | YAML parsing/serialization | Reading/writing YAML specs produced by agent debate. Loading YAML frontmatter for agent definitions. | HIGH |
+| **Jinja2** | >=3.1 | Template engine for code generation | `architect generate` renders SQL DDL, dbt models from specs + templates. Jinja is the dbt standard. | HIGH |
+| **rich** | >=13.0 | Terminal output formatting | Pretty-print CLI output (tables, progress, syntax highlighting). Typer recommends rich for enhanced output. | MEDIUM |
 
-**Rationale:** Mermaid is the standard for programmatic diagram generation. Generate Mermaid syntax strings (simple text concatenation or templates), not SVG/PNG directly. Let downstream tools render. Mermaid syntax is human-readable, version-controllable, and widely supported (GitHub, GitLab, VSCode, Notion).
+## pyproject.toml Configuration
 
-## Installation
+**Confidence: HIGH** -- Verified from UV docs, Hatchling docs, uv-dynamic-versioning docs.
 
-```bash
-# Core agent framework
-npm install @anthropic-ai/claude-agent-sdk
+```toml
+[project]
+name = "warehouse-architect"
+dynamic = ["version"]
+description = "Scaffold OpenCode AI agents and generate data warehouse scripts"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.13"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+keywords = ["data-warehouse", "anchor-modeling", "opencode", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Typing :: Typed",
+]
+dependencies = [
+    "typer>=0.21.0",
+    "pyyaml>=6.0",
+    "jinja2>=3.1",
+    "rich>=13.0",
+]
 
-# Schema validation
-npm install zod js-yaml
-npm install -D @types/js-yaml
+[project.scripts]
+architect = "warehouse_architect.cli:app"
 
-# Template engines
-npm install nunjucks handlebars
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
 
-# AST manipulation (optional, if generating TypeScript code)
-npm install ts-morph
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
 
-# Supporting libraries
-npm install mermaid prettier
-npm install -D vitest tsx
+[tool.uv-dynamic-versioning]
+fallback-version = "0.0.0"
 
-# Prettier SQL plugin (optional, for SQL formatting)
-npm install -D prettier-plugin-sql
+[tool.uv]
+dev-dependencies = [
+    "pytest>=9.0.0",
+    "pytest-cov>=7.0.0",
+    "hypothesis>=6.151.0",
+    "mypy>=1.19.0",
+    "ruff>=0.15.0",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "I",     # isort
+    "SIM",   # flake8-simplify
+    "TCH",   # flake8-type-checking
+    "RUF",   # ruff-specific rules
+    "PT",    # flake8-pytest-style
+    "ARG",   # flake8-unused-arguments
+    "FBT",   # flake8-boolean-trap
+    "C4",    # flake8-comprehensions
+    "DTZ",   # flake8-datetimez
+    "T20",   # flake8-print (no print statements)
+    "ANN",   # flake8-annotations (enforce type annotations)
+    "S",     # flake8-bandit (security)
+]
+ignore = [
+    "ANN101",  # Missing type annotation for self (we don't use self)
+    "ANN102",  # Missing type annotation for cls (we don't use cls)
+    "S101",    # Use of assert (needed for tests)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "ANN"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+check_untyped_defs = true
+no_implicit_reexport = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=warehouse_architect --cov-report=term-missing --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks integration tests",
+]
+
+[tool.coverage.run]
+source = ["warehouse_architect"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.",
+]
 ```
+
+## Dynamic Versioning
+
+**Confidence: HIGH** -- Verified from uv-dynamic-versioning docs and UV official guides.
+
+### How It Works
+
+1. Tag a commit: `git tag v0.1.0`
+2. `uv build` reads the tag and sets the version automatically
+3. Between tags, version becomes `0.1.0.devN+gHASH` (N = commits since tag)
+4. No `__version__` string maintained anywhere in source code
+
+### Exposing Version in Package
+
+```python
+# warehouse_architect/__init__.py
+import importlib.metadata
+
+try:
+    __version__ = importlib.metadata.version("warehouse-architect")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = "0.0.0"
+```
+
+### Version Flow
+
+```
+git tag v0.1.0  -->  uv build  -->  warehouse_architect-0.1.0-py3-none-any.whl
+                                     warehouse_architect-0.1.0.tar.gz
+```
+
+## Makefile
+
+```makefile
+.DEFAULT_GOAL := check
+
+.PHONY: bootstrap lint type test check clean
+
+bootstrap:  ## Install all dependencies
+	uv sync --locked --all-extras --dev
+
+lint:  ## Run linter and formatter check
+	uv run ruff check .
+	uv run ruff format --check .
+
+format:  ## Auto-fix lint issues and format
+	uv run ruff check --fix .
+	uv run ruff format .
+
+type:  ## Run type checker
+	uv run mypy warehouse_architect
+
+test:  ## Run tests with coverage
+	uv run pytest
+
+check: lint type test  ## Run all checks (lint + type + test)
+
+clean:  ## Remove build artifacts
+	rm -rf dist/ build/ *.egg-info .mypy_cache .pytest_cache .coverage htmlcov/
+```
+
+## CI/CD with GitHub Actions
+
+**Confidence: HIGH** -- Verified from UV official GitHub Actions guide (https://docs.astral.sh/uv/guides/integration/github/).
+
+### CI Workflow (PRs)
+
+```yaml
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.10.0"
+          enable-cache: true
+      - run: uv python install 3.13
+      - run: uv sync --locked --all-extras --dev
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy warehouse_architect
+      - name: Test
+        run: uv run pytest
+```
+
+### CD Workflow (PyPI Publish on Tags)
+
+```yaml
+name: Publish
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Full history for dynamic versioning
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.10.0"
+      - run: uv python install 3.13
+      - run: uv build
+      - name: Smoke test
+        run: |
+          uv run --with ./dist/*.whl -- python -c "import warehouse_architect; print(warehouse_architect.__version__)"
+      - run: uv publish
+```
+
+**Trusted Publishing:** PyPI supports OpenID Connect tokens from GitHub Actions. No API keys needed -- configure a Trusted Publisher on PyPI pointing to your GitHub repo.
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | When to Use Alternative | Confidence |
-|----------|-------------|-------------|-------------------------|------------|
-| Agent Framework | Claude Agent SDK (TypeScript) | Claude Agent SDK (Python) | Use Python if your team has no TypeScript experience. Python SDK has feature parity. Trade-off: lose compile-time type safety for specs and generated code. | HIGH |
-| Schema Validation | Zod | Ajv + TypeScript JSON Schema | Use Ajv if performance profiling shows Zod is a bottleneck (Ajv is 10-100x faster for high-volume validation), or if you need to publish JSON Schemas as an open standard for external consumers. | HIGH |
-| Template Engine (SQL) | Nunjucks | Handlebars | Use Handlebars only for simple templates without inheritance (e.g., config files, Mermaid diagrams). Not recommended for SQL generation. | HIGH |
-| Template Engine (SQL) | Nunjucks | Jinja (via Python subprocess) | DON'T. Adds Python dependency for marginal syntax compatibility with dbt. Nunjucks syntax is 95% compatible with Jinja. Not worth the complexity. | HIGH |
-| TypeScript AST | ts-morph | TypeScript Compiler API (direct) | Use direct Compiler API if you're already familiar with it and need maximum performance. ts-morph is a wrapper that trades ~10% performance for 90% better DX. | MEDIUM |
-| Diagram Generation | Mermaid | D3.js | Use D3.js only if you need highly custom interactive visualizations. Mermaid covers 95% of data modeling diagrams (ER, class, sequence, flowchart). D3 requires significantly more code. | HIGH |
-| Diagram Generation | Mermaid | PlantUML | Use PlantUML if you need UML-strict diagrams. Mermaid's UML support is "UML-like" not UML-compliant. Trade-off: PlantUML requires Java runtime. | MEDIUM |
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| CLI Framework | **Typer** | Click | Typer IS Click with type hints. Click requires more boilerplate. Typer's function-based API aligns with our functional Python mandate. |
+| CLI Framework | **Typer** | argparse | argparse is verbose, no auto-completion, no rich output. Typer generates all of this from type hints. |
+| Build Backend | **Hatchling** | setuptools | Hatchling is simpler config, better plugin system. UV recommends Hatchling. setuptools requires more boilerplate. |
+| Build Backend | **Hatchling** | flit | flit is too simple -- no plugin system for dynamic versioning. |
+| Dynamic Versioning | **uv-dynamic-versioning** | setuptools-scm | setuptools-scm requires setuptools backend. uv-dynamic-versioning is designed for Hatchling + UV stack. |
+| Dynamic Versioning | **uv-dynamic-versioning** | versioningit | versioningit works but smaller community. uv-dynamic-versioning is purpose-built for UV projects. |
+| Type Checker | **Mypy** (CI) | Pyright | Mypy is better for CI (stricter, more established). Pyright is better for IDE. Use both: Pyright via Pylance in VS Code, Mypy in CI. |
+| Type Checker | **Mypy** (CI) | ty (Astral) | ty is in beta (stable expected later 2026). 10-60x faster than Mypy. Monitor for graduation to stable, then switch. |
+| Linter | **Ruff** | flake8 + isort + black | Ruff replaces all three in one tool. 10-100x faster. Same team as UV. No reason to use separate tools in 2026. |
+| Template Engine | **Jinja2** | Mako | Jinja2 is the dbt standard. If generated SQL needs to work with dbt, it must be Jinja-compatible. |
+| YAML Library | **PyYAML** | ruamel.yaml | PyYAML is simpler and sufficient. ruamel.yaml preserves comments (useful if we need round-trip editing later, but not for generation). |
+| Immutable Data | **frozen dataclasses** | pyrsistent | External dep for minimal gain. frozen dataclasses are stdlib, type-checker friendly, and sufficient for this domain. |
+| Immutable Data | **frozen dataclasses** | NamedTuple | NamedTuple is slightly lighter but frozen dataclasses have better defaults, `replace()` support, and clearer intent. |
+| Test Framework | **pytest** | unittest | pytest is function-based (no test classes). Better fixtures, parametrize, and plugin ecosystem. De facto standard. |
+| Package Manager | **UV** | Poetry | UV is 10-100x faster, has lockfile, replaces pyenv+pip+poetry. Astral ecosystem consistency with Ruff. Industry has converged on UV in 2026. |
+| Package Manager | **UV** | pip + venv | Manual, slow, no lockfile, no Python version management. UV does everything better. |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead | Confidence |
 |-------|-----|-------------|------------|
-| **LangChain / LangGraph** | Adds unnecessary abstraction layer over Claude Agent SDK. The SDK already handles tool execution, agent loops, and context management. LangChain abstracts these, but you WANT direct control for a skill. | Claude Agent SDK directly | HIGH |
-| **Prisma / TypeORM / Knex** | These are database ORMs for runtime query building. You're generating SQL files, not executing queries at runtime. ORMs generate SQL optimized for a query builder API, not human-readable DDL. | Template engines (Nunjucks) | HIGH |
-| **Ejs** | Older template engine with embedded JavaScript (`<% %>` syntax). Less powerful than Nunjucks (no inheritance), less secure (code injection risk), and less popular (declining adoption). | Nunjucks or Handlebars | HIGH |
-| **Mustache** | Logic-less templates. Too restrictive for SQL generation. You need conditionals (e.g., "if this anchor has historization, add effective date columns") and loops (e.g., "for each attribute, generate a column"). | Nunjucks or Handlebars | HIGH |
-| **JSON Schema (standalone)** | Maintains separate schema and TypeScript types. You'll write the schema in JSON Schema format, then separately write TypeScript interfaces. With Zod, schema IS type. | Zod | HIGH |
-| **io-ts** | Alternative TypeScript runtime validation library. Less ergonomic than Zod (more verbose syntax), smaller ecosystem, and lower adoption. | Zod | MEDIUM |
-| **Anchor Modeler (as dependency)** | Java Swing GUI application, not a library. Cannot be imported or called from Node.js. Use it as a reference to understand Anchor Modeling rules, then implement those rules in your templates. | Custom templates encoding Anchor Modeling rules | HIGH |
-| **Python for templates** | Requires Python subprocess calls from Node.js for marginal benefit (Jinja compatibility with dbt). Adds complexity, deployment dependencies, and subprocess overhead. Nunjucks syntax is 95% compatible with Jinja. | Nunjucks (JavaScript-native) | HIGH |
+| **Classes with methods** | Project mandate: pure functional Python. Classes encourage mutable state and method-based behavior. | Frozen dataclasses for data, standalone functions for behavior. | HIGH |
+| **Poetry** | Superseded by UV in 2026. Slower, less features, less ecosystem support. | UV | HIGH |
+| **Black + isort + flake8** | Three separate tools replaced by one (Ruff). More config, slower, more deps. | Ruff | HIGH |
+| **Pylint** | Slow, opinionated in ways that conflict with functional style. | Ruff | HIGH |
+| **pyrsistent / Expression / pfun** | External FP libraries add complexity for minimal gain. Frozen dataclasses cover our needs. | `dataclasses(frozen=True)` + stdlib | HIGH |
+| **setuptools (as build backend)** | More config, less plugin support than Hatchling. UV recommends Hatchling. | Hatchling | HIGH |
+| **tox** | UV replaces tox for running tests across environments. `uv run` handles venv management. | `uv run pytest` | MEDIUM |
+| **pre-commit** | Adds complexity. CI catches everything. Developers can run `make check` locally. Consider adding later if team discipline is an issue. | `make check` locally, CI enforcement | MEDIUM |
+| **Pydantic** | Overkill for this project. Pydantic is for runtime validation of external data (APIs, user input). Our specs are YAML files validated at load time. Frozen dataclasses + manual validation functions are sufficient and avoid the class-heavy Pydantic API. | Frozen dataclasses + validation functions | MEDIUM |
 
-## Stack Patterns by Use Case
+## Enforcing Functional Style with Ruff
 
-### If building for dbt Core integration
+Ruff cannot directly ban `class` usage (no such rule exists). Enforcement strategy:
 
-```bash
-# Use Nunjucks (Jinja-like syntax)
-npm install nunjucks
+1. **Code review convention**: No classes except `@dataclass(frozen=True)` for data.
+2. **Ruff ANN rules**: Force type annotations on all functions -- makes function signatures explicit.
+3. **Ruff FBT rules**: Ban boolean traps -- encourages explicit function parameters.
+4. **Mypy strict mode**: Forces complete typing, which naturally discourages OOP patterns.
+5. **Project convention in AGENTS.md / CONTRIBUTING.md**: Document the rule. Example:
+   - YES: `@dataclass(frozen=True)` for data, standalone functions for logic
+   - NO: Classes with methods, mutable state, inheritance
 
-# Generate dbt models as .sql files with Jinja-compatible syntax
-# Nunjucks supports {{ var }}, {% if %}, {% for %}, {% macro %} - 95% Jinja-compatible
+## Project Directory Structure
+
 ```
-
-**Why:** dbt Core uses Jinja for templating. Nunjucks syntax is 95% compatible. Generated dbt models should be valid Jinja so users can extend them with dbt macros.
-
-**Caveat:** Nunjucks and Jinja have minor syntax differences (e.g., Jinja's `{% raw %}` vs Nunjucks `{% verbatim %}`). Test generated models with dbt Core to catch incompatibilities.
-
-### If generating TypeScript data utilities alongside SQL
-
-```bash
-# Add ts-morph for TypeScript AST manipulation
-npm install ts-morph
-
-# Generate both SQL DDL and TypeScript interfaces from same spec
+warehouse-architect/
+  pyproject.toml
+  uv.lock
+  Makefile
+  .python-version              # "3.13"
+  .github/
+    workflows/
+      ci.yml
+      publish.yml
+  warehouse_architect/
+    __init__.py                 # __version__ via importlib.metadata
+    cli.py                      # Typer app (architect init, architect generate)
+    init/
+      __init__.py
+      scaffold.py               # Pure functions: create .opencode/ structure
+      agents.py                 # Pure functions: generate agent markdown
+      skills.py                 # Pure functions: generate skill markdown
+      config.py                 # Pure functions: generate opencode.json
+    generate/
+      __init__.py
+      das.py                    # Pure functions: spec -> DAS SQL
+      dar.py                    # Pure functions: spec -> DAR SQL
+      templates/                # Jinja2 templates for SQL generation
+    models/
+      __init__.py
+      agent.py                  # Frozen dataclasses for agent definitions
+      spec.py                   # Frozen dataclasses for warehouse specs
+    templates/
+      agents/                   # Agent persona templates (Markdown)
+        data-architect.md.j2
+        system-analyst.md.j2
+        business-analyst.md.j2
+        data-engineer.md.j2
+        analytics-engineer.md.j2
+        veteran-reviewer.md.j2
+      skills/                   # Skill templates
+        clp-debate.md.j2
+        anchor-modeling.md.j2
+      config/
+        opencode.json.j2        # OpenCode config template
+  tests/
+    __init__.py
+    test_cli.py
+    test_init/
+      test_scaffold.py
+      test_agents.py
+      test_skills.py
+    test_generate/
+      test_das.py
+      test_dar.py
+    test_models/
+      test_agent.py
+      test_spec.py
+    conftest.py                 # Shared fixtures
 ```
-
-**Why:** ts-morph wraps TypeScript Compiler API with ergonomic methods. Generate TypeScript types for your data models programmatically.
-
-**Example:** Generate TypeScript interfaces for each anchor's structure. Users can import these for type-safe data loading scripts.
-
-### If building interactive diagram preview UI
-
-```bash
-# Add Mermaid with a renderer
-npm install mermaid
-
-# In browser context:
-import mermaid from 'mermaid';
-mermaid.initialize({ startOnLoad: true });
-```
-
-**Why:** Mermaid can render diagrams in the browser. Your skill could generate an HTML preview file with embedded Mermaid diagrams.
-
-**Alternative:** Generate Mermaid syntax strings only. Let users render with their preferred tool (GitHub, VSCode Mermaid Preview, Mermaid Live Editor).
-
-## Multi-Agent Orchestration Patterns
-
-Based on 2026 research, three patterns for multi-agent orchestration:
-
-### 1. Centralized Orchestration (Recommended for v1)
-
-```typescript
-// Main agent delegates to specialists
-const result = await query({
-  prompt: "Design a data warehouse for e-commerce orders",
-  options: {
-    allowedTools: ["Read", "Write", "Task"],
-    agents: {
-      "data-architect": {
-        description: "Designs conceptual data models using Anchor Modeling",
-        prompt: "You are a data architect specializing in Anchor Modeling...",
-        tools: ["Read", "Write"]
-      },
-      "data-engineer": {
-        description: "Generates SQL DDL from specifications",
-        prompt: "You are a data engineer who generates SQL from YAML specs...",
-        tools: ["Read", "Write"]
-      }
-    }
-  }
-});
-```
-
-**Why:** Simple to implement and debug. Main agent has full context. Single point of control. Suitable for MVP.
-
-**Trade-off:** Main agent must orchestrate everything. Can hit context limits with many specialists.
-
-### 2. Hierarchical Orchestration (Recommended for v2+)
-
-```typescript
-// Tiered structure: manager → team leads → specialists
-// Example: Architect → Conceptual/Logical/Physical → Individual modelers
-```
-
-**Why:** Scales better. Each tier has focused context. Mirrors real-world data team structure.
-
-**Trade-off:** More complex. Requires careful context passing between tiers.
-
-### 3. Sequential Pipeline (For deterministic workflows)
-
-```typescript
-// Linear pipeline: Spec validation → Template selection → Code generation → Validation
-// Use for deterministic generation steps
-```
-
-**Why:** Deterministic, testable, and cacheable. Each step has clear inputs/outputs.
-
-**Trade-off:** Less flexible. Not suitable for exploratory design phases.
-
-**Recommendation for Warehouse Architect:** Use Centralized for v1 (all agents report to main orchestrator). Migrate to Hierarchical if context limits become an issue. Use Sequential Pipeline for the generation phase (spec → SQL) after design is finalized.
 
 ## Version Compatibility Matrix
 
-Based on research conducted February 2026:
-
 | Package | Version | Compatible With | Notes |
 |---------|---------|-----------------|-------|
-| TypeScript | 5.5+ | Zod 4.3+, Claude Agent SDK | Zod requires 5.5+. Use latest stable (5.7+ as of Feb 2026). |
-| Node.js | 18+ (LTS) | Claude Agent SDK | SDK supports Node 18+. Recommend 20+ for performance. |
-| Zod | 4.3+ | TypeScript 5.5+ | Zod 4.x introduced breaking changes from 3.x. Review migration guide. |
-| Nunjucks | 3.2+ | Node.js 18+ | Stable API. No breaking changes expected. |
-| ts-morph | 24+ | TypeScript 5.5+ | Tracks TypeScript Compiler API version. Update ts-morph when updating TypeScript. |
+| Python | >=3.13 | All listed packages | 3.13.12 is current stable (Feb 2026) |
+| UV | >=0.10.0 | Hatchling, uv-dynamic-versioning | Pin in CI for reproducibility |
+| Hatchling | >=1.28.0 | uv-dynamic-versioning >=0.13.0 | Build backend |
+| uv-dynamic-versioning | >=0.13.0 | Hatchling >=1.28.0 | Requires git tags |
+| Typer | >=0.21.0 | Click >=8.3.0 (auto-installed) | Typer depends on Click internally |
+| Ruff | >=0.15.0 | Python >=3.13 target | 2026 style guide |
+| Mypy | >=1.19.0 | Python 3.13 | strict mode recommended |
+| pytest | >=9.0.0 | Python >=3.13 | Function-based tests only |
+| Hypothesis | >=6.151.0 | pytest >=9.0.0 | Requires Python >=3.10 |
+| pytest-cov | >=7.0.0 | coverage.py >=7.13 | Auto-installed |
+| PyYAML | >=6.0 | Python >=3.13 | Stable API |
+| Jinja2 | >=3.1 | Python >=3.13 | Stable API |
+| rich | >=13.0 | Typer >=0.21.0 | Optional but recommended |
 
-**Critical compatibility note:** Zod 4.x has breaking changes from 3.x:
-- `.pick()` and `.omit()` on refined object schemas now throw errors (previously silently dropped refinements)
-- New `.xor()` type for exclusive unions
-- New `.looseRecord()` for pattern properties
+## Installation
 
-Review [Zod 4.x changelog](https://github.com/colinhacks/zod/releases) before upgrading from 3.x.
+```bash
+# Development setup
+uv sync --locked --all-extras --dev
 
-## Development Tools
-
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| **tsx** | Execute TypeScript directly (development) | Faster iteration. Use `tsx your-skill.ts` instead of `tsc && node`. |
-| **vitest** | Test framework | Fast, TypeScript-native, good for testing templates and specs. |
-| **prettier** | Code formatting | Format generated SQL, YAML, TypeScript with consistent style. |
-| **eslint** | Linting | Catch agent orchestration bugs (e.g., missing error handling). |
-| **@typescript-eslint/parser** | TypeScript ESLint support | Required for ESLint with TypeScript. |
-
-## Architecture Decision Records
-
-### ADR-001: TypeScript over Python for full stack
-
-**Decision:** Use TypeScript for agent orchestration, schema validation, and code generation.
-
-**Rationale:**
-- Claude Agent SDK has first-class TypeScript support (feature parity with Python)
-- TypeScript type system provides compile-time validation for specs and generated code
-- Single language for full pipeline (agent → validation → generation) reduces context switching
-- TypeScript surpassed Python in 2025 GitHub language report
-- Zod's TypeScript-first design (schema IS type) is a killer feature for specification systems
-
-**Trade-offs:**
-- Team must learn TypeScript if Python-only background
-- Python has larger AI ecosystem (but not relevant for deterministic code generation)
-
-**Alternative considered:** Python for agents + TypeScript for generation. Rejected because adds language boundary and loses type safety across agent → spec → code pipeline.
-
-### ADR-002: Zod over Ajv for schema validation
-
-**Decision:** Use Zod for runtime validation and TypeScript type inference.
-
-**Rationale:**
-- Schema and type are unified: `const S = z.object({})` + `type T = z.infer<typeof S>`
-- No separate JSON Schema + TypeScript interface to maintain
-- Refinements for business logic: `.refine(data => anchorHasHistorization(data), "Invalid anchor")`
-- Better developer experience (ergonomic API)
-
-**Trade-offs:**
-- Ajv is 10-100x faster for high-volume validation
-- Ajv supports JSON Schema draft 2020-12 (standard format)
-
-**Mitigation:** Profile performance in real usage. If validation is a bottleneck (unlikely for spec files), migrate to Ajv. If external consumers need JSON Schema format, generate it from Zod with `zod-to-json-schema`.
-
-### ADR-003: Nunjucks over Handlebars for SQL generation
-
-**Decision:** Use Nunjucks as primary template engine for SQL DDL generation.
-
-**Rationale:**
-- Template inheritance: Define base anchor template, extend for specific anchors
-- Built-in async support (if templates need to read files)
-- Fine whitespace control: Generated SQL must be human-readable
-- 95% Jinja syntax compatibility (dbt Core uses Jinja)
-
-**Trade-offs:**
-- Handlebars has simpler syntax
-- Handlebars has larger ecosystem
-
-**Mitigation:** Use Handlebars for simple non-SQL templates (Mermaid diagrams, config files). Nunjucks for SQL only.
-
-### ADR-004: Template-based over AST-based SQL generation
-
-**Decision:** Generate SQL using templates (Nunjucks), not AST manipulation.
-
-**Rationale:**
-- SQL doesn't have a standard TypeScript AST library
-- Template-based is the ecosystem standard (dbt Core uses Jinja)
-- Templates are easier to understand and debug than AST code
-- SQL DDL structure is predictable (anchor → table with standard columns)
-
-**Trade-offs:**
-- AST-based would provide stronger guarantees (syntactically valid SQL)
-- AST-based could compose transformations
-
-**Mitigation:** Validate generated SQL with SQL parser (e.g., `node-sql-parser`) in tests. Templates are deterministic - test once per template, not per generation.
-
-### ADR-005: Mermaid over PlantUML for diagram generation
-
-**Decision:** Generate Mermaid syntax for diagrams.
-
-**Rationale:**
-- No Java runtime dependency (PlantUML requires Java)
-- Mermaid is JavaScript-native
-- Wide tooling support (GitHub, GitLab, VSCode, Notion)
-- Human-readable syntax (versionable, diffable)
-- Covers all needed diagrams: ER, class, sequence, flowchart
-
-**Trade-offs:**
-- PlantUML is more UML-compliant (Mermaid is "UML-like")
-- PlantUML has more diagram types
-
-**Mitigation:** If strict UML compliance is required, add PlantUML generation as an alternative output format. Don't remove Mermaid - keep both.
+# Or from PyPI (end user)
+uv tool install warehouse-architect
+# or
+pip install warehouse-architect
+```
 
 ## Confidence Assessment
 
 | Area | Confidence | Reason |
 |------|------------|--------|
-| Agent Framework | HIGH | Claude Agent SDK is official and authoritative. Clear documentation. Active development. |
-| Schema Validation | HIGH | Zod is mature (4.x stable), widely adopted, and TypeScript-native. Alternative (Ajv) is well-understood. |
-| Template Engines | MEDIUM-HIGH | Nunjucks and Handlebars are stable and mature. Template-based SQL generation is proven pattern (dbt Core). Confidence reduced slightly because Anchor Modeling templates are custom (no reference implementation). |
-| Anchor Modeling | MEDIUM | Anchor Modeler provides formalized rules, but no TypeScript library exists. Custom implementation required. Risk: May misinterpret modeling rules. Mitigation: Reference implementation exists (Java GUI), can validate against it. |
-| Multi-Agent Orchestration | MEDIUM | Claude Agent SDK provides primitives (subagents, Task tool, hooks). 2026 patterns are emerging (centralized, hierarchical, sequential) but not yet standardized. Risk: May need to refactor orchestration as patterns mature. |
-| Diagram Generation | HIGH | Mermaid is mature and widely adopted. Syntax is simple (string concatenation). |
-| Overall Stack | MEDIUM-HIGH | Core technologies are stable and well-documented. Risk areas are custom implementations (Anchor Modeling rules, multi-agent orchestration patterns). These are inherent to the problem domain, not technology choices. |
+| OpenCode.ai agent format | HIGH | Verified from official docs (opencode.ai/docs/agents/, /config/, /skills/, /rules/). Format is Markdown + YAML frontmatter. Clear and stable. |
+| UV + Hatchling + dynamic versioning | HIGH | Verified from official Astral docs and uv-dynamic-versioning PyPI page. Well-documented, actively maintained. |
+| CLI framework (Typer) | HIGH | Mature (v0.21), function-based API, built on Click. Widely adopted. |
+| Functional Python patterns | HIGH | stdlib frozen dataclasses are well-understood. No exotic deps needed. |
+| Linting (Ruff) | HIGH | v0.15.0, Feb 2026 release. De facto standard. |
+| Type checking (Mypy) | HIGH | v1.19.0, mature. ty (Astral) is promising but still beta. |
+| Testing (pytest + Hypothesis) | HIGH | Both mature, actively maintained, well-documented. |
+| CI/CD (GitHub Actions + UV) | HIGH | Official UV GitHub Actions guide with complete workflow examples. Trusted Publishing supported. |
+| Dynamic versioning | HIGH | uv-dynamic-versioning v0.13.0, designed for this exact stack. |
 
-## Open Questions & Research Gaps
+## Open Questions
 
-### Anchor Modeling Implementation Details
+### ty (Astral Type Checker)
 
-**Gap:** No TypeScript reference implementation for translating Anchor Models to SQL DDL.
+ty is 10-60x faster than Mypy and built by the Astral team (UV, Ruff). Currently in beta, stable release expected later 2026. **Recommendation:** Start with Mypy (proven, stable). Monitor ty's progress. Switch when ty reaches stable and achieves feature parity with Mypy strict mode. The switch will be trivial since both read the same type annotations.
 
-**Mitigation:**
-1. Study [Anchor Modeler GitHub repo](https://github.com/Roenbaeck/anchor) for formalized rules
-2. Review academic papers on Anchor Modeling for 6NF translation
-3. Validate generated SQL against Anchor Modeler output (use Java tool as oracle)
+### Ruff Functional Style Enforcement
 
-**Phase recommendation:** Phase 1 should include deeper research on Anchor Modeling rules. Consider spawning a dedicated research task: "Survey Anchor Modeling translation rules for TypeScript implementation."
+No existing Ruff rule bans `class` definitions (only `@dataclass` is enforceable). **Recommendation:** Enforce via code review convention and project documentation. Consider writing a custom Ruff plugin if the team grows.
 
-### Multi-Agent Context Management
+### OpenCode.ai Agent Versioning
 
-**Gap:** How to manage context when agents produce intermediate YAML specs consumed by downstream agents?
-
-**Mitigation:**
-1. Use Claude Agent SDK's session management to persist context
-2. Investigate file-based state (agents write specs to `.claude/state/`, downstream agents read)
-3. Consider message passing patterns from multi-agent orchestration research
-
-**Phase recommendation:** Phase 2 (multi-agent implementation) needs research spike on context passing patterns.
-
-### dbt Integration Surface
-
-**Gap:** What's the integration surface between generated SQL DDL and dbt models?
-
-**Current assumption:** Generate dbt-compatible Jinja/SQL files. Users run `dbt run` on generated files.
-
-**Validation needed:**
-1. Test generated Jinja with dbt Core to identify incompatibilities
-2. Determine if dbt-specific features (sources, tests, docs) should be generated
-3. Investigate dbt packages for Anchor Modeling (if any exist)
-
-**Phase recommendation:** Phase 3 (dbt integration) needs research on dbt project structure and Jinja compatibility testing.
+OpenCode is evolving rapidly (v1.1.53, 697 releases). Agent format may change. **Recommendation:** Keep agent template generation decoupled from the CLI core. If OpenCode changes format, only the template layer needs updating.
 
 ## Sources
 
 ### Official Documentation (HIGH Confidence)
-- [Claude Agent SDK Overview](https://platform.claude.com/docs/en/agent-sdk/overview) - Core SDK capabilities
-- [Claude Code Skills Documentation](https://code.claude.com/docs/en/skills) - Skill structure and best practices
-- [Zod Documentation](https://zod.dev/) - Schema validation
-- [Zod GitHub Releases](https://github.com/colinhacks/zod/releases) - Version 4.x features
-- [ts-morph Documentation](https://ts-morph.com/) - TypeScript AST manipulation
-- [Anchor Modeling GitHub](https://github.com/Roenbaeck/anchor) - Reference implementation
-- [dbt SQL Models Documentation](https://docs.getdbt.com/docs/build/sql-models) - dbt templating patterns
-- [Mermaid Documentation](https://mermaid.js.org/) - Diagram generation
+- [OpenCode.ai Agents Docs](https://opencode.ai/docs/agents/) -- Agent definition format, frontmatter fields, modes
+- [OpenCode.ai Config Docs](https://opencode.ai/docs/config/) -- opencode.json schema, configuration merging
+- [OpenCode.ai Skills Docs](https://opencode.ai/docs/skills/) -- Skill format, SKILL.md structure, permissions
+- [OpenCode.ai Rules Docs](https://opencode.ai/docs/rules/) -- AGENTS.md rules format
+- [UV Working on Projects](https://docs.astral.sh/uv/guides/projects/) -- pyproject.toml, uv sync, uv build
+- [UV GitHub Actions Guide](https://docs.astral.sh/uv/guides/integration/github/) -- CI/CD workflows
+- [UV Building and Publishing](https://docs.astral.sh/uv/guides/package/) -- uv build, uv publish, trusted publishing
+- [Ruff v0.15.0 Release](https://astral.sh/blog/ruff-v0.15.0) -- 2026 style guide, current version
+- [Astral ty Blog Post](https://astral.sh/blog/ty) -- ty beta status, performance benchmarks
+- [Typer Documentation](https://typer.tiangolo.com/) -- CLI framework, function-based API
+- [Hypothesis Documentation](https://hypothesis.readthedocs.io/) -- Property-based testing
+
+### Package Registries (HIGH Confidence)
+- [uv-dynamic-versioning on PyPI](https://pypi.org/project/uv-dynamic-versioning/) -- v0.13.0, Jan 2026
+- [Ruff on PyPI](https://pypi.org/project/ruff/) -- v0.15.0, Feb 2026
+- [Typer on PyPI](https://pypi.org/project/typer/) -- v0.21.1, Jan 2026
+- [Mypy on PyPI](https://pypi.org/project/mypy/) -- v1.19.1, Dec 2025
+- [pytest on PyPI](https://pypi.org/project/pytest/) -- v9.0.2, Feb 2026
+- [Hypothesis on PyPI](https://pypi.org/project/hypothesis/) -- v6.151.5, Feb 2026
+- [Hatchling on PyPI](https://pypi.org/project/hatchling/) -- v1.28.0, Jan 2026
 
 ### Ecosystem Research (MEDIUM Confidence)
-- [Building agents with the Claude Agent SDK](https://www.anthropic.com/engineering/building-agents-with-the-claude-agent-sdk) - Anthropic engineering blog
-- [Top 5 TypeScript AI Agent Frameworks 2026](https://blog.agentailor.com/posts/top-typescript-ai-agent-frameworks-2026) - Framework comparison
-- [Multi-Agent Systems Guide 2026](https://dev.to/eira-wexford/how-to-build-multi-agent-systems-complete-2026-guide-1io6) - Orchestration patterns
-- [Handlebars vs Nunjucks](https://stackshare.io/stackups/handlebars-vs-nunjucks) - Template engine comparison
-- [Top 13 JavaScript Templating Engines 2026](https://colorlib.com/wp/top-templating-engines-for-javascript/) - Ecosystem survey
-- [Using TypeScript AST](https://nabeelvalley.co.za/docs/javascript/typescript-ast/) - AST manipulation guide
-- [Anchor Modeling Wikipedia](https://en.wikipedia.org/wiki/Anchor_modeling) - Conceptual overview
-
-### Community Resources (MEDIUM-LOW Confidence)
-- [JSON Schema Everywhere - YAML](https://json-schema-everywhere.github.io/yaml) - YAML validation patterns
-- [Ajv with TypeScript](https://ajv.js.org/guide/typescript.html) - Alternative validation approach
-- [dbt Jinja and Macros](https://docs.getdbt.com/docs/build/jinja-macros) - Template patterns for SQL
-
-### Version Information (LOW-MEDIUM Confidence)
-- npm package pages searched but access blocked (403 errors)
-- Version information sourced from GitHub releases and search results
-- **Recommendation:** Verify versions with `npm view <package> version` before installation
+- [Python Developer Tooling Handbook: Dynamic Versioning](https://pydevtools.com/handbook/how-to/how-to-add-dynamic-versioning-to-uv-projects/) -- uv-dynamic-versioning guide
+- [Mypy vs Pyright Discussion](https://discuss.python.org/t/mypy-vs-pyright-in-practice/75984) -- Community comparison
+- [Pyright Mypy Comparison](https://github.com/microsoft/pyright/blob/main/docs/mypy-comparison.md) -- Official Pyright comparison doc
+- [OpenCode GitHub (sst/opencode)](https://github.com/sst/opencode) -- v1.1.53, 99.7k stars
 
 ---
-
-*Stack research for: Warehouse Architect (Claude Code skill for data warehouse design)*
+*Stack research for: Warehouse Architect (Python CLI + OpenCode.ai agent scaffolding)*
 *Researched: 2026-02-07*
-*Confidence: MEDIUM-HIGH (core technologies HIGH, domain-specific implementations MEDIUM)*
+*Confidence: HIGH (all core technologies verified from official sources)*

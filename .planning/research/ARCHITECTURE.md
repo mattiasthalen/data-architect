@@ -1,6 +1,6 @@
 # Architecture Research
 
-**Domain:** Claude Code Multi-Agent Skill with Debate Orchestration
+**Domain:** Python CLI + OpenCode Agents for Data Warehouse Design
 **Researched:** 2026-02-07
 **Confidence:** HIGH
 
@@ -9,422 +9,487 @@
 ### System Overview
 
 ```
+                         warehouse-architect
+                         (pip-installable CLI)
+
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                     USER INTERFACE LAYER                                 │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐       │
-│  │ Slash Commands   │  │ AskUserQuestion  │  │ Checkpoint UI    │       │
-│  │ (/wa:start-model)│  │ (Debate Results) │  │ (Human Review)   │       │
-│  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘       │
-├───────────┴─────────────────────┴─────────────────────┴─────────────────┤
-│                    ORCHESTRATOR LAYER                                    │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │              Workflow State Machine (Main Orchestrator)          │   │
-│  │  - CLP Stage Coordinator (Conceptual → Logical → Physical)       │   │
-│  │  - Checkpoint Manager (Validation gates between stages)          │   │
-│  │  - Agent Spawner (Task tool with subagent_type)                  │   │
-│  │  - Debate Moderator (Collects arguments, triggers resolution)    │   │
-│  └────┬────────────┬────────────┬────────────┬──────────┬─────────┘   │
-│       │            │            │            │          │              │
-├───────┴────────────┴────────────┴────────────┴──────────┴─────────────┤
-│                         AGENT LAYER                                     │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌─────────────┐      │
-│  │  System    │  │  Business  │  │    Data    │  │  Veteran    │      │
-│  │  Analyst   │  │  Analyst   │  │  Architect │  │  Reviewer   │      │
-│  │            │  │            │  │            │  │             │      │
-│  │ (Technical │  │ (Business  │  │ (Synthesis │  │ (Quality    │      │
-│  │  focus)    │  │  focus)    │  │  + rules)  │  │  critique)  │      │
-│  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘  └──────┬──────┘      │
-│        │               │               │                 │             │
-├────────┴───────────────┴───────────────┴─────────────────┴─────────────┤
-│                    SPECIFICATION LAYER                                  │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │               YAML/JSON Specification Files                      │  │
-│  │  - anchors.yaml (Entities with identity)                         │  │
-│  │  - attributes.yaml (Temporal properties)                         │  │
-│  │  - ties.yaml (Relationships)                                     │  │
-│  │  - knots.yaml (Static reference data)                            │  │
-│  └────────────────────┬─────────────────────────────────────────────┘  │
-├───────────────────────┴─────────────────────────────────────────────────┤
-│                    GENERATOR LAYER                                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                  │
-│  │  SQL DDL     │  │  DBT Models  │  │  Docs/ERD    │                  │
-│  │  Generator   │  │  Generator   │  │  Generator   │                  │
-│  │              │  │              │  │              │                  │
-│  │ (Deterministic code generation from specs)                          │
-│  └──────────────┘  └──────────────┘  └──────────────┘                  │
+│                        CLI LAYER (Click)                                │
+│  ┌──────────────────┐              ┌──────────────────────────┐        │
+│  │  architect init   │              │  architect generate       │        │
+│  │  (scaffold agents │              │  (spec → DAS/DAR scripts) │        │
+│  │   to .opencode/)  │              │  (deterministic, no AI)   │        │
+│  └────────┬─────────┘              └────────────┬─────────────┘        │
+├───────────┴────────────────────────────────────┴──────────────────────┤
+│                    SCAFFOLDING LAYER                                    │
+│  ┌────────────────────────────────────────────────────────────┐       │
+│  │  Template Reader (importlib.resources)                      │       │
+│  │  → reads bundled .md agent definitions from package         │       │
+│  │  → copies to .opencode/agents/ in cwd                       │       │
+│  └────────────────────────────────────────────────────────────┘       │
+│                                                                         │
+│                    GENERATION LAYER                                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐        │
+│  │  Spec Reader  │  │  DAS Gen     │  │  DAR Gen              │        │
+│  │  (YAML/JSON   │  │  (source →   │  │  (DAB output →        │        │
+│  │   → frozen     │  │   staging    │  │   star schema         │        │
+│  │   dataclasses) │  │   scripts)   │  │   scripts)            │        │
+│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘        │
+│         │                  │                      │                     │
+│  ┌──────┴──────────────────┴──────────────────────┴──────────┐        │
+│  │  Template Engine (Jinja2)                                   │        │
+│  │  → SQL DDL, dbt models, Mermaid diagrams                    │        │
+│  │  → Deterministic: same spec → same output always            │        │
+│  └─────────────────────────────────────────────────────────────┘        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                    DATA LAYER (Immutable)                               │
+│  ┌─────────────────────────────────────────────────────────────┐       │
+│  │  frozen dataclasses: Spec, Anchor, Attribute, Tie, Knot     │       │
+│  │  → parsed from YAML/JSON, validated with schema             │       │
+│  │  → passed through pure function pipelines                   │       │
+│  │  → never mutated, always replaced                           │       │
+│  └─────────────────────────────────────────────────────────────┘       │
 └─────────────────────────────────────────────────────────────────────────┘
+
+         ┌─────────────────────────────────────────────────────┐
+         │  BUNDLED AGENT TEMPLATES (package data)              │
+         │  warehouse_architect/_agents/                         │
+         │    ├── data-architect.md     (entry point agent)      │
+         │    ├── system-analyst.md     (source-system expert)   │
+         │    ├── business-analyst.md   (domain expert)          │
+         │    ├── data-engineer.md      (physical modeling)      │
+         │    ├── analytics-engineer.md (consumption layer)      │
+         │    └── veteran-reviewer.md   (grumpy critic)          │
+         └─────────────────────────────────────────────────────┘
+
+                    .opencode/agents/    (scaffolded into user project)
+                    specs/               (YAML/JSON from agent debate)
+                    generated/           (DAS + DAR output)
 ```
 
 ### Component Responsibilities
 
 | Component | Responsibility | Typical Implementation |
 |-----------|----------------|------------------------|
-| **Workflow State Machine** | Coordinates CLP progression, manages checkpoints, spawns agents | Markdown command file with workflow logic |
-| **System Analyst Agent** | Argues technical feasibility, data source constraints, schema design | Subagent with technical prompting (`.claude/agents/wa-system-analyst.md`) |
-| **Business Analyst Agent** | Argues business value, user needs, reporting requirements | Subagent with business prompting (`.claude/agents/wa-business-analyst.md`) |
-| **Data Architect Agent** | Synthesizes debate into Anchor Model elements, applies methodology rules | Subagent with Anchor Modeling knowledge (`.claude/agents/wa-data-architect.md`) |
-| **Veteran Reviewer Agent** | Reviews synthesized model for methodology compliance, flags issues | Subagent with quality gates (`.claude/agents/wa-veteran-reviewer.md`) |
-| **Checkpoint Manager** | Validates stage completion, gates progression to next stage | Logic embedded in orchestrator workflow |
-| **Specification Writer** | Writes YAML/JSON files for Anchor Model elements | Logic in Data Architect agent |
-| **Deterministic Generators** | Transforms specs to platform code (SQL DDL, DBT, docs) | Scripts/templates in `.claude/generators/` |
+| **CLI Entry Point** | Parses `init` and `generate` commands, validates arguments, dispatches to handler functions | Click group with two commands; module-level functions, no classes |
+| **Scaffolder** | Reads bundled agent template files, writes them to `.opencode/agents/` in cwd | Pure function: `scaffold_agents(target_dir: Path) -> list[Path]` using `importlib.resources` |
+| **Spec Reader** | Parses YAML/JSON spec files into frozen dataclasses, validates schema | Pure function: `read_spec(path: Path) -> Spec` returning immutable data |
+| **DAS Generator** | Transforms source schema specs into Data-According-to-System scripts | Pure function pipeline: `spec -> sql_fragments -> rendered_output` |
+| **DAR Generator** | Transforms DAB output specs into Data-According-to-Requirements scripts | Pure function pipeline: `spec -> star_schema_fragments -> rendered_output` |
+| **Template Engine** | Renders Jinja2 templates with spec data to produce SQL/dbt output | Pure function: `render_template(template_name: str, context: dict) -> str` |
+| **Agent Templates** | OpenCode-format `.md` files with YAML frontmatter defining agent personas | Static files bundled in package, copied verbatim to target project |
 
 ## Recommended Project Structure
 
 ```
-.claude/
-├── agents/                      # Agent definitions (Markdown with YAML frontmatter)
-│   ├── wa-system-analyst.md     # Technical perspective debater
-│   ├── wa-business-analyst.md   # Business perspective debater
-│   ├── wa-data-architect.md     # Synthesis and Anchor Modeling expert
-│   ├── wa-veteran-reviewer.md   # Methodology compliance reviewer
-│   └── wa-orchestrator.md       # Optional: CLP workflow coordinator
-├── commands/                    # User-facing slash commands
-│   └── wa/
-│       ├── start-model.md       # Initiate new modeling session
-│       ├── debate-anchor.md     # Run debate on specific anchor
-│       ├── checkpoint.md        # Force checkpoint validation
-│       └── generate.md          # Run generators on specs
-├── hooks/                       # Lifecycle hooks
-│   ├── pre-debate.sh            # Validate debate inputs
-│   └── post-checkpoint.sh       # Auto-commit specs on checkpoint pass
-├── generators/                  # Deterministic code generators
-│   ├── sql-ddl/                 # SQL DDL generator
-│   │   ├── anchor.sql.tmpl      # Anchor table template
-│   │   ├── attribute.sql.tmpl   # Attribute table template
-│   │   └── generate.sh          # Generator entry point
-│   ├── dbt/                     # DBT model generator
-│   │   └── generate.sh
-│   └── docs/                    # Documentation generator
-│       └── generate.sh
-├── templates/                   # Specification and workflow templates
-│   ├── anchor-spec.yaml         # Template for anchor definition
-│   ├── attribute-spec.yaml      # Template for attribute definition
-│   ├── debate-context.md        # Debate session context template
-│   └── checkpoint-report.md     # Checkpoint validation report
-└── references/                  # Domain knowledge
-    ├── anchor-modeling.md       # Anchor Modeling methodology reference
-    ├── debate-protocol.md       # How DAB debate works
-    └── clp-workflow.md          # CLP stage definitions
-
-.warehouse/                      # Warehouse modeling workspace (not .planning)
-├── specs/                       # Specification files (source of truth)
-│   ├── conceptual/              # CLP Stage 1
-│   │   ├── anchors.yaml         # Entity definitions
-│   │   └── relationships.md     # High-level relationships
-│   ├── logical/                 # CLP Stage 2
-│   │   ├── anchors.yaml         # Refined anchors with metadata
-│   │   ├── attributes.yaml      # Temporal attributes
-│   │   ├── ties.yaml            # Relationships between anchors
-│   │   └── knots.yaml           # Static reference data
-│   └── physical/                # CLP Stage 3
-│       ├── anchors.yaml         # Physical naming, indexing
-│       ├── attributes.yaml      # Column types, constraints
-│       ├── ties.yaml            # Foreign key mappings
-│       └── deployment.yaml      # Platform-specific config
-├── debates/                     # Debate session artifacts
-│   ├── 001-customer-anchor/
-│   │   ├── system-argument.md   # System Analyst position
-│   │   ├── business-argument.md # Business Analyst position
-│   │   ├── resolution.md        # Data Architect synthesis
-│   │   └── review.md            # Veteran Reviewer critique
-│   └── 002-order-anchor/
-│       └── ...
-├── checkpoints/                 # Checkpoint validation reports
-│   ├── conceptual-complete.md   # Stage 1 validation
-│   ├── logical-complete.md      # Stage 2 validation
-│   └── physical-complete.md     # Stage 3 validation
-└── generated/                   # Output from deterministic generators
-    ├── sql/                     # SQL DDL
-    │   ├── schema.sql
-    │   └── indexes.sql
-    ├── dbt/                     # DBT models
-    │   ├── models/
-    │   └── dbt_project.yml
-    └── docs/                    # Documentation
-        ├── erd.md
-        └── data-dictionary.md
+warehouse-architect/
+├── pyproject.toml              # UV project config, hatchling build
+├── Makefile                    # bootstrap, lint, type, test, check
+├── uv.lock                    # lockfile (committed)
+├── .python-version            # Python version pin
+├── README.md
+│
+├── src/
+│   └── warehouse_architect/
+│       ├── __init__.py         # __version__ from importlib.metadata
+│       │
+│       ├── cli.py              # Click group: init + generate commands
+│       │                       # Entry point: warehouse_architect.cli:main
+│       │
+│       ├── scaffold.py         # scaffold_agents() — reads templates, writes to target
+│       │                       # Pure functions only
+│       │
+│       ├── spec.py             # Frozen dataclasses: Spec, Anchor, Attribute, Tie, Knot
+│       │                       # read_spec(), validate_spec() — pure parsing + validation
+│       │
+│       ├── generate.py         # generate_das(), generate_dar() — orchestrates generation
+│       │                       # Pure function pipelines
+│       │
+│       ├── das/                # DAS generation module
+│       │   ├── __init__.py
+│       │   └── transforms.py   # Source schema → staging layer transforms
+│       │
+│       ├── dar/                # DAR generation module
+│       │   ├── __init__.py
+│       │   └── transforms.py   # DAB output → star schema transforms
+│       │
+│       ├── templates/          # Jinja2 templates for code generation
+│       │   ├── __init__.py     # Required for importlib.resources
+│       │   ├── das/
+│       │   │   ├── __init__.py
+│       │   │   ├── staging.sql.j2
+│       │   │   └── staging.dbt.sql.j2
+│       │   └── dar/
+│       │       ├── __init__.py
+│       │       ├── bridge.sql.j2
+│       │       ├── dimension.sql.j2
+│       │       └── fact.sql.j2
+│       │
+│       └── _agents/            # Bundled OpenCode agent definitions
+│           ├── __init__.py     # Required for importlib.resources
+│           ├── data-architect.md
+│           ├── system-analyst.md
+│           ├── business-analyst.md
+│           ├── data-engineer.md
+│           ├── analytics-engineer.md
+│           └── veteran-reviewer.md
+│
+└── tests/
+    ├── conftest.py             # Shared fixtures: tmp_dir, sample specs, etc.
+    ├── test_cli.py             # CLI integration tests (Click CliRunner)
+    ├── test_scaffold.py        # Scaffold tests: files created, content correct
+    ├── test_spec.py            # Spec parsing tests + property-based (Hypothesis)
+    ├── test_generate.py        # Generation tests: deterministic output
+    ├── test_das/
+    │   └── test_transforms.py  # DAS transform unit tests
+    ├── test_dar/
+    │   └── test_transforms.py  # DAR transform unit tests
+    └── snapshots/              # Syrupy snapshot files for generated SQL
 ```
 
 ### Structure Rationale
 
-- **`.claude/agents/`**: Agent definitions live in skill directory for portability. Each agent is a Markdown file with role definition and prompting strategy.
-- **`.claude/generators/`**: Deterministic generators are scripts/templates, not AI agents. They consume YAML specs and produce platform code.
-- **`.warehouse/specs/`**: Source of truth specification files organized by CLP stage. Progressive refinement from conceptual → logical → physical.
-- **`.warehouse/debates/`**: Debate artifacts for traceability. Each debate session captured for review and learning.
-- **`.warehouse/checkpoints/`**: Validation gates between CLP stages. Must pass to progress.
-- **`.warehouse/generated/`**: Output directory for generated artifacts. Treated as disposable (regenerate from specs).
+- **`src/` layout:** Prevents accidental imports of uninstalled package. Forces tests to run against installed package. This is the PyPA-recommended layout and UV's default for libraries. Catches packaging bugs early.
+
+- **`_agents/` directory:** Underscore prefix signals "private/internal" to Python conventions. These are package data files, not importable modules. The `__init__.py` makes them discoverable by `importlib.resources.files()`.
+
+- **`templates/` inside package:** Jinja2 templates co-located with Python code so `importlib.resources` can find them. Each sub-directory (`das/`, `dar/`) mirrors the generation concern it serves.
+
+- **`spec.py` as single module:** All data types in one module because they form a single coherent schema. Frozen dataclasses are small; splitting them across files adds navigation cost without benefit.
+
+- **`cli.py` as thin layer:** CLI module does argument parsing and error formatting only. All logic lives in `scaffold.py`, `generate.py`, and transform modules. This makes the logic testable without CLI invocation.
+
+- **`tests/` mirrors `src/`:** Each source module has a corresponding test module. `snapshots/` directory holds Syrupy snapshot files for golden-file testing of generated SQL.
 
 ## Architectural Patterns
 
-### Pattern 1: DAB (Debate-Argumentation-Balance) Orchestration
+### Pattern 1: Pure Function Pipelines (Core Pattern)
 
-**What:** Multi-agent debate pattern where System Analyst and Business Analyst argue opposing perspectives, Data Architect synthesizes, Veteran Reviewer critiques, and user decides.
+**What:** All business logic implemented as pure functions that transform immutable data. No classes, no mutable state, no side effects in core logic. Side effects (file I/O, console output) are pushed to the edges (CLI layer, scaffold layer).
 
-**When to use:** Modeling decisions with inherent technical vs business tension (e.g., granularity of temporal tracking, anchor vs attribute classification).
-
-**Trade-offs:**
-- **Pros:** Surfaces hidden assumptions, explores design space, produces well-reasoned decisions
-- **Cons:** Higher token cost, requires orchestrator complexity, can produce analysis paralysis
-
-**Example:**
-```yaml
-# Debate session configuration
-debate:
-  topic: "Should OrderStatus be an Anchor or Attribute of Order?"
-  participants:
-    - agent: wa-system-analyst
-      stance: "Attribute - low cardinality, tightly coupled to Order lifecycle"
-    - agent: wa-business-analyst
-      stance: "Anchor - business process stages, independent temporal tracking"
-  synthesizer: wa-data-architect
-  reviewer: wa-veteran-reviewer
-  decision_gate: user  # human decides after review
-```
-
-**Orchestrator logic:**
-```markdown
-1. Spawn System Analyst with topic prompt → collect argument
-2. Spawn Business Analyst with topic + System arg → collect counter-argument
-3. Spawn Data Architect with both arguments → synthesize recommendation
-4. Spawn Veteran Reviewer with synthesis → critique
-5. Present all to user via AskUserQuestion → user decides
-6. Record decision in debate artifact
-```
-
-### Pattern 2: CLP Progressive Refinement Workflow
-
-**What:** Stage-gated workflow moving from Conceptual (entities, relationships) → Logical (Anchor Model elements) → Physical (platform-specific implementation).
-
-**When to use:** Data warehouse modeling where premature physical decisions constrain logical design.
+**When to use:** Everywhere in this project. The constraint is "pure functional Python, no classes."
 
 **Trade-offs:**
-- **Pros:** Prevents premature optimization, enforces separation of concerns, enables platform portability
-- **Cons:** Requires discipline to not skip stages, overhead of multiple spec refinements
+- **Pros:** Every function is independently testable, composable, and predictable. Frozen dataclasses guarantee no mutation bugs. Property-based testing becomes natural.
+- **Cons:** Python is not Haskell; some patterns feel awkward (e.g., passing config through function arguments instead of `self`). Deeply nested function composition can be hard to read.
 
 **Example:**
-```markdown
-## CLP Workflow State Machine
+```python
+from dataclasses import dataclass, replace
+from pathlib import Path
+from typing import Sequence
 
-State: CONCEPTUAL
-- Identify business entities (Anchors)
-- Define high-level relationships
-- No temporal or physical concerns yet
-Checkpoint: All business entities identified? Relationships clear?
-→ LOGICAL
+# Immutable data
+@dataclass(frozen=True)
+class Anchor:
+    name: str
+    identity: str
+    business_key: str
+    historized: bool = False
 
-State: LOGICAL
-- Classify Anchor elements (anchors, attributes, ties, knots)
-- Define temporal tracking strategy (historization, point-in-time)
-- Apply Anchor Modeling methodology rules
-Checkpoint: Methodology compliance? 6NF normalized? Temporal strategy complete?
-→ PHYSICAL
+@dataclass(frozen=True)
+class Spec:
+    anchors: tuple[Anchor, ...]  # tuple, not list — immutable
+    version: str
 
-State: PHYSICAL
-- Map to target platform (Snowflake, BigQuery, Postgres)
-- Define indexing, partitioning, clustering
-- Generate DDL, DBT models, documentation
-Checkpoint: Platform-specific optimizations applied? Generated code compiles?
-→ COMPLETE
+# Pure functions — no side effects, no mutation
+def parse_anchor(raw: dict) -> Anchor:
+    return Anchor(
+        name=raw["name"],
+        identity=raw["identity"],
+        business_key=raw["business_key"],
+        historized=raw.get("historized", False),
+    )
+
+def parse_spec(raw: dict) -> Spec:
+    return Spec(
+        anchors=tuple(parse_anchor(a) for a in raw["anchors"]),
+        version=raw["version"],
+    )
+
+def validate_spec(spec: Spec) -> tuple[bool, Sequence[str]]:
+    errors: list[str] = []
+    for anchor in spec.anchors:
+        if not anchor.name[0].isupper():
+            errors.append(f"Anchor name '{anchor.name}' must be PascalCase")
+    return (len(errors) == 0, tuple(errors))
+
+# Pipeline composition
+def read_and_validate(path: Path) -> tuple[Spec, Sequence[str]]:
+    import yaml
+    raw = yaml.safe_load(path.read_text())
+    spec = parse_spec(raw)
+    valid, errors = validate_spec(spec)
+    return spec, errors
 ```
 
-### Pattern 3: Specification-Driven Generation
+### Pattern 2: importlib.resources for Template Bundling
 
-**What:** Deterministic code generators consume YAML/JSON specifications and produce platform-specific artifacts (SQL DDL, DBT models, documentation).
+**What:** Agent definition files and Jinja2 templates are bundled inside the Python package using `importlib.resources`. This is the standard library mechanism for accessing non-Python files shipped with a package. No `pkg_resources` (deprecated), no `__file__` path hacking.
 
-**When to use:** When generated code must be repeatable, auditable, and version-controlled alongside specs.
+**When to use:** Accessing any bundled file (agent `.md` files, Jinja2 `.j2` templates).
 
 **Trade-offs:**
-- **Pros:** Single source of truth (specs), regeneration on spec change, platform portability
-- **Cons:** Requires maintaining generator templates, debugging generation errors harder than handwritten code
+- **Pros:** Works in zip-imported packages, editable installs, and standard installs. No path assumptions. Standard library, no extra dependencies.
+- **Cons:** Requires `__init__.py` in data directories. Files accessed as `Traversable` objects, not raw paths (unless you use `as_file()` context manager).
 
 **Example:**
-```yaml
-# specs/logical/anchors.yaml
-anchors:
-  - name: Customer
-    identity: CustomerID
-    business_key: EmailAddress
-    description: Individual or organization placing orders
-    historization: true
-    metadata:
-      source_system: CRM
-      data_owner: Sales Team
+```python
+from importlib import resources
+from pathlib import Path
 
-  - name: Order
-    identity: OrderID
-    business_key: OrderNumber
-    description: Purchase transaction
-    historization: true
-    metadata:
-      source_system: ERP
-      data_owner: Operations Team
+def get_agent_templates() -> dict[str, str]:
+    """Read all bundled agent .md files. Pure: returns data, no side effects."""
+    agents_dir = resources.files("warehouse_architect._agents")
+    result = {}
+    for item in agents_dir.iterdir():
+        if item.name.endswith(".md"):
+            result[item.name] = item.read_text(encoding="utf-8")
+    return result
+
+def scaffold_agents(target_dir: Path) -> list[Path]:
+    """Write agent templates to target directory. Side effect: file I/O."""
+    agents_dir = target_dir / ".opencode" / "agents"
+    agents_dir.mkdir(parents=True, exist_ok=True)
+    templates = get_agent_templates()
+    written: list[Path] = []
+    for filename, content in sorted(templates.items()):
+        dest = agents_dir / filename
+        dest.write_text(content, encoding="utf-8")
+        written.append(dest)
+    return written
 ```
 
-**Generator transformation:**
-```sql
--- Generated from specs/logical/anchors.yaml
-CREATE TABLE Customer_Anchor (
-    CustomerID BIGINT PRIMARY KEY,
-    LoadedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    LoadedBy VARCHAR(255) NOT NULL DEFAULT CURRENT_USER
-);
+### Pattern 3: Thin CLI Shell Over Pure Logic
 
-CREATE TABLE Customer_EmailAddress (
-    CustomerID BIGINT NOT NULL,
-    EmailAddress VARCHAR(255) NOT NULL,
-    ValidFrom TIMESTAMP NOT NULL,
-    ValidTo TIMESTAMP NULL,
-    LoadedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (CustomerID) REFERENCES Customer_Anchor(CustomerID)
-);
-```
+**What:** The CLI layer (Click) handles only argument parsing, error formatting, and console output. All actual logic lives in pure function modules (`scaffold.py`, `generate.py`). The CLI module is a thin adapter between the terminal and the pure core.
 
-### Pattern 4: Checkpoint-Gated Progression
-
-**What:** Validation gates between CLP stages that must pass before workflow continues. Prevents moving to Physical with incomplete Logical design.
-
-**When to use:** Multi-stage workflows where later stages depend on earlier stage completeness.
+**When to use:** All CLI commands. This pattern makes logic testable without invoking Click's test runner.
 
 **Trade-offs:**
-- **Pros:** Enforces quality gates, prevents downstream rework, creates audit trail
-- **Cons:** Can feel bureaucratic, requires thoughtful checkpoint criteria
+- **Pros:** Core logic testable with plain pytest (no CliRunner needed). CLI concerns (color, formatting, exit codes) isolated from business logic. Easy to add alternative interfaces later (API, library).
+- **Cons:** Extra layer of indirection. Must pass all context as function arguments (no global state).
 
 **Example:**
-```markdown
-## Logical → Physical Checkpoint
+```python
+# cli.py — thin shell
+import click
+from pathlib import Path
+from warehouse_architect.scaffold import scaffold_agents
+from warehouse_architect.generate import generate_all
 
-Validation criteria:
-- [ ] All anchors have identity and business key defined
-- [ ] All attributes reference valid anchors
-- [ ] All ties define both anchor endpoints
-- [ ] Knot cardinality validated (< 1000 values)
-- [ ] 6NF normalization verified
-- [ ] Temporal strategy consistent across model
-- [ ] Veteran Reviewer flagged zero critical issues
+@click.group()
+def main():
+    """Data warehouse architect — scaffold agents, generate scripts."""
+    pass
 
-Result: PASS / FAIL (with issues list)
+@main.command()
+@click.option("--target", default=".", help="Target directory for .opencode/ scaffold")
+def init(target: str):
+    """Scaffold OpenCode agent definitions into .opencode/agents/."""
+    target_path = Path(target).resolve()
+    written = scaffold_agents(target_path)
+    click.echo(f"Scaffolded {len(written)} agent definitions to {target_path / '.opencode' / 'agents'}")
+    for path in written:
+        click.echo(f"  {path.name}")
 
-If PASS: Write checkpoint/.../logical-complete.md, transition to PHYSICAL
-If FAIL: Present issues to user, remain in LOGICAL stage
+@main.command()
+@click.argument("spec_path", type=click.Path(exists=True))
+@click.option("--output", "-o", default="generated/", help="Output directory")
+@click.option("--target", type=click.Choice(["das", "dar", "all"]), default="all")
+def generate(spec_path: str, output: str, target: str):
+    """Generate DAS/DAR scripts from YAML/JSON specs."""
+    spec = Path(spec_path).resolve()
+    out = Path(output).resolve()
+    results = generate_all(spec, out, target)
+    click.echo(f"Generated {len(results)} files to {out}")
+```
+
+### Pattern 4: Snapshot Testing for Deterministic Output
+
+**What:** Since generators must be deterministic (same spec always produces same output), snapshot testing captures expected output and detects any drift. Syrupy (pytest plugin) stores snapshots as readable files that are committed to version control.
+
+**When to use:** All generator output tests. Every Jinja2 template rendering gets a snapshot test.
+
+**Trade-offs:**
+- **Pros:** Catches unintended output changes immediately. Snapshots serve as documentation of expected output. Easy to update when intentional changes are made (`--snapshot-update`).
+- **Cons:** Snapshot files must be reviewed in PRs. Can mask understanding if blindly updated.
+
+**Example:**
+```python
+# test_generate.py
+def test_anchor_ddl_generation(snapshot):
+    spec = Spec(
+        anchors=(
+            Anchor(name="Customer", identity="CustomerID",
+                   business_key="Email", historized=True),
+        ),
+        version="1.0.0",
+    )
+    result = generate_anchor_ddl(spec.anchors[0], dialect="snowflake")
+    assert result == snapshot
+
+# Snapshot file (auto-generated, committed to git):
+# tests/snapshots/test_generate/test_anchor_ddl_generation.txt
+# CREATE TABLE Customer_Anchor (
+#     CustomerID BIGINT NOT NULL,
+#     ...
+# );
+```
+
+### Pattern 5: Spec as Contract Between Agents and Generators
+
+**What:** YAML/JSON specification files are the boundary between the probabilistic world (OpenCode agents debating during DAB) and the deterministic world (Python generators producing DAS/DAR). Specs are validated against a schema on read. Generators never consume raw YAML — they receive typed, validated, frozen dataclasses.
+
+**When to use:** Every interaction between agent output and generator input.
+
+**Trade-offs:**
+- **Pros:** Clear contract. Agents can evolve their debate process independently of generators. Schema validation catches malformed specs before generation. Type safety from frozen dataclasses.
+- **Cons:** Schema must be kept in sync between agent expectations and generator consumption. Versioning needed if schema evolves.
+
+**Data flow:**
+```
+Agents (in OpenCode)     →  YAML/JSON files  →  Python CLI
+   debate, decide             (on disk)           read, validate, generate
+   (probabilistic)            (contract)          (deterministic)
 ```
 
 ## Data Flow
 
-### Request Flow
+### Init Flow (Scaffolding)
 
 ```
-User initiates modeling session
+architect init [--target .]
     ↓
-/wa:start-model → Orchestrator creates CLP state machine
+CLI parses args → target_dir: Path
     ↓
-Orchestrator loads Conceptual stage → User defines entities
+scaffold_agents(target_dir)
     ↓
-For each entity decision requiring debate:
+importlib.resources.files("warehouse_architect._agents")
     ↓
-Orchestrator spawns DAB debate:
-    System Analyst → argument.md
-    Business Analyst → counter-argument.md
-    Data Architect → synthesis.md
-    Veteran Reviewer → critique.md
+iterate .md files → read content (pure)
     ↓
-User reviews debate output → AskUserQuestion → decision
+write to target_dir/.opencode/agents/ (side effect at edge)
     ↓
-Orchestrator records decision → updates spec YAML
-    ↓
-Repeat for all Conceptual decisions
-    ↓
-Orchestrator triggers Conceptual checkpoint → validation
-    ↓
-Checkpoint PASS → transition to Logical stage
-    ↓
-Repeat debate/checkpoint pattern for Logical stage
-    ↓
-Logical checkpoint PASS → transition to Physical stage
-    ↓
-Physical stage refines specs → triggers generators
-    ↓
-Generators produce SQL DDL, DBT, docs → written to generated/
-    ↓
-Physical checkpoint validates generated artifacts
-    ↓
-Workflow COMPLETE
+return list of written paths → CLI formats output
 ```
 
-### State Management
+### Generate Flow (DAS/DAR Scripts)
 
 ```
-[Orchestrator State File: .warehouse/state.yaml]
-    ↓ (read/write)
-Orchestrator tracks:
-- current_stage: conceptual | logical | physical | complete
-- completed_checkpoints: [list]
-- pending_debates: [list]
-- decisions: [{topic, result, timestamp}]
-    ↓ (spawns agents via Task tool)
-Agents read state → produce artifacts → write to debates/
-    ↓ (triggers validation)
-Checkpoint logic reads specs + debates → produces checkpoint report
-    ↓ (updates state on pass)
-Orchestrator updates state.yaml → transitions to next stage
+architect generate specs/ --output generated/ --target all
+    ↓
+CLI parses args → spec_path, output_dir, target
+    ↓
+read_spec(spec_path)
+    ↓
+yaml.safe_load() → raw dict
+    ↓
+parse_spec(raw) → Spec (frozen dataclass)
+    ↓
+validate_spec(spec) → (valid, errors)
+    ↓ (if valid)
+┌─────────────────────┬──────────────────────────┐
+│ generate_das(spec)   │ generate_dar(spec)        │
+│   ↓                  │   ↓                       │
+│ das_transforms(spec) │ dar_transforms(spec)      │
+│   ↓                  │   ↓                       │
+│ render_template(     │ render_template(           │
+│   "das/*.sql.j2",    │   "dar/*.sql.j2",         │
+│   context)           │   context)                 │
+│   ↓                  │   ↓                       │
+│ SQL/dbt strings      │ SQL/dbt strings            │
+└──────────┬──────────┘└──────────────┬────────────┘
+           ↓                          ↓
+        write to output_dir/ (side effect at edge)
+           ↓
+        return list of generated paths → CLI formats output
 ```
 
 ### Key Data Flows
 
-1. **Debate Flow:** User question → Orchestrator spawns 4 agents in sequence → agents write Markdown artifacts → Orchestrator presents to user → User decision recorded
-2. **Spec Flow:** Agent decisions → Data Architect writes YAML → Checkpoint reads YAML → Validation rules check YAML → Checkpoint report
-3. **Generation Flow:** Specs YAML → Generator templates → Generated code (SQL/DBT/Docs) → Output to generated/ directory
+1. **Scaffold Flow:** Package data (bundled .md files) → `importlib.resources` reads → pure function extracts content → side-effect function writes to disk. One-way, no state.
 
-## Scaling Considerations
+2. **Spec Flow:** YAML/JSON on disk → `yaml.safe_load()` → `parse_spec()` pure function → frozen dataclass Spec → `validate_spec()` pure function → validated Spec ready for generation.
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 1-5 anchors | Single orchestrator, sequential debates, human checkpoints sufficient |
-| 5-20 anchors | Parallelize debates (debate multiple anchors simultaneously), automated checkpoint validation, batch generation |
-| 20+ anchors | Introduce debate prioritization (high-impact decisions first), checkpoint caching (skip re-validation of unchanged specs), incremental generation (only regenerate changed entities) |
+3. **Generation Flow:** Validated Spec (frozen) → transform functions (pure, produce intermediate dicts/tuples) → Jinja2 template rendering (deterministic) → string output → file write (side effect at edge).
 
-### Scaling Priorities
+4. **Agent Debate Flow (outside this tool):** User drives agents in OpenCode → agents debate through CLP stages → agents write YAML/JSON specs to disk → `architect generate` consumes specs. The Python CLI never participates in debate — it only consumes the output.
 
-1. **First bottleneck:** Debate latency — mitigate with parallel debate spawning (independent anchors can be debated simultaneously)
-2. **Second bottleneck:** Checkpoint validation cost — mitigate with incremental validation (only validate changed specs, cache validation results)
-3. **Third bottleneck:** Generation time — mitigate with incremental generation (detect spec changes, regenerate only affected artifacts)
+## How GSD Patterns Map to This Tool
+
+The GSD (get-shit-done) framework uses a consistent pattern for agent definitions that directly parallels what `architect init` scaffolds:
+
+### GSD Agent Pattern
+
+GSD agents (`.claude/agents/*.md`) follow this structure:
+1. **YAML frontmatter** with metadata: name, description, tools, color
+2. **Role section** defining the agent's purpose and responsibilities
+3. **Structured sections** for philosophy, process, output formats
+4. **Downstream consumer documentation** explaining who uses the agent's output
+
+### Mapping to warehouse-architect
+
+| GSD Concept | warehouse-architect Equivalent |
+|-------------|-------------------------------|
+| `.claude/agents/*.md` | `.opencode/agents/*.md` (scaffolded by `architect init`) |
+| YAML frontmatter (name, tools) | OpenCode YAML frontmatter (description, mode, model, tools, permissions) |
+| Role section in markdown body | Agent system prompt in markdown body |
+| GSD orchestrator spawns agents | User manually drives agents in OpenCode |
+| `.planning/` directory for state | `specs/` directory for debate output (YAML/JSON) |
+| Structured returns (YAML blocks) | Structured spec output (YAML/JSON files) |
+| Agent reads project context | Agent reads source docs + business description from cwd |
+
+### Key Structural Parallel
+
+GSD separates concerns into:
+- **Orchestrators** (slash commands) that coordinate workflow
+- **Agents** (markdown definitions) that do specialized work
+- **Artifacts** (planning files) that carry state between agents
+
+warehouse-architect separates concerns into:
+- **CLI commands** (`init`, `generate`) that coordinate workflow
+- **Agent definitions** (markdown files) that do specialized debate work
+- **Specs** (YAML/JSON files) that carry decisions from agents to generators
+
+The pattern is the same: thin orchestration layer, specialized agents, file-based contracts between stages.
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Skipping CLP Stages
+### Anti-Pattern 1: Classes for Everything
 
-**What people do:** Jump directly to Physical (SQL DDL) without Conceptual/Logical modeling
-**Why it's wrong:** Embeds platform assumptions early, prevents portability, mixes business logic with physical optimization
-**Do this instead:** Follow CLP progression strictly. Enforce checkpoint gates. Physical specs should be pure refinement of Logical specs.
+**What people do:** Create `Agent` class, `Generator` class, `SpecParser` class — OOP reflexes in a functional codebase.
+**Why it's wrong:** Violates the project constraint (pure functional, no classes). Classes encourage mutable state, hidden dependencies through `self`, and make functions harder to compose and test in isolation.
+**Do this instead:** Module-level pure functions. Frozen dataclasses for data. Pass everything through function arguments. Compose functions in pipelines.
 
-### Anti-Pattern 2: AI Agents in Generators
+### Anti-Pattern 2: Path Manipulation for Package Data
 
-**What people do:** Use LLM agents to generate SQL DDL from specs
-**Why it's wrong:** Non-deterministic output, unpredictable token costs, hard to debug, breaks repeatability
-**Do this instead:** Deterministic template-based generation. Generators are scripts/Jinja2 templates, not AI agents. Specs → Templates → Code.
+**What people do:** Use `__file__` to find package data: `Path(__file__).parent / "_agents" / "data-architect.md"`.
+**Why it's wrong:** Breaks when package is installed as a zip (wheel), in editable mode with different layouts, or in some CI environments. `__file__` is not guaranteed to point to a real filesystem path.
+**Do this instead:** Use `importlib.resources.files("warehouse_architect._agents")` which handles all installation modes correctly.
 
-### Anti-Pattern 3: Debate without Decision Recording
+### Anti-Pattern 3: Mutable State in Transform Pipeline
 
-**What people do:** Run debates, user decides, but decision rationale not captured
-**Why it's wrong:** Lost institutional knowledge, debate must be re-run when revisiting decision, no audit trail
-**Do this instead:** Every debate session writes artifacts (arguments, synthesis, critique, decision). Store in `.warehouse/debates/[topic]/` for traceability.
+**What people do:** Build up a result dict/list mutably as transforms run: `result["tables"].append(table)`.
+**Why it's wrong:** Makes transforms order-dependent, harder to test in isolation, and vulnerable to accidental mutation bugs (e.g., one transform accidentally modifying shared state).
+**Do this instead:** Each transform returns new data. Compose with tuple concatenation or `dataclasses.replace()`. Pipeline is: `input → transform1 → intermediate → transform2 → output`. Each step is independently testable.
 
-### Anti-Pattern 4: Monolithic Orchestrator
+### Anti-Pattern 4: Jinja2 Templates with Logic
 
-**What people do:** Single massive Markdown file with all CLP logic, debate spawning, checkpoint validation
-**Why it's wrong:** Hard to maintain, hard to test individual stages, can't reuse debate logic across skills
-**Do this instead:** Modular orchestrator composition. `/wa:start-model` orchestrates CLP flow. `/wa:debate-anchor` is reusable debate command. Checkpoint logic in separate files.
+**What people do:** Put complex Python logic inside Jinja2 templates: `{% for anchor in spec.anchors if anchor.historized and anchor.name != "Audit" %}`.
+**Why it's wrong:** Logic in templates is untestable (no unit tests for template conditionals), hard to debug (Jinja2 error messages are opaque), and couples presentation to business rules.
+**Do this instead:** Prepare a fully-resolved context dict in Python (pure function, testable), pass it to Jinja2 for simple iteration and substitution only. Templates should have no `if` beyond trivial formatting concerns.
 
-### Anti-Pattern 5: User as Rubber Stamp
+### Anti-Pattern 5: Testing Through CLI Only
 
-**What people do:** Present debate results with pre-selected "correct" answer
-**Why it's wrong:** Defeats purpose of debate, user loses agency, debate becomes theater
-**Do this instead:** Present all perspectives neutrally. AskUserQuestion with options for each agent's recommendation plus "custom decision". User is final authority.
+**What people do:** Write all tests using Click's CliRunner, testing end-to-end through the CLI interface.
+**Why it's wrong:** Slow, brittle (tests break on formatting changes), and hides which specific function is broken. Also impossible to property-test CLI invocations.
+**Do this instead:** Test pure functions directly with pytest. Use Hypothesis for property-based testing of spec parsing and validation. Reserve CliRunner tests for integration testing of the CLI layer itself (argument parsing, error messages, exit codes).
 
-### Anti-Pattern 6: Specs as Documentation
+### Anti-Pattern 6: Agent Templates with Dynamic Content
 
-**What people do:** Treat YAML specs as generated from code (reverse-engineering)
-**Why it's wrong:** Specs lose status as source of truth, become stale, generation becomes impossible
-**Do this instead:** Specs are source of truth. Code is generated from specs. Never reverse-engineer specs from generated code.
+**What people do:** Use Jinja2 or string interpolation to inject project-specific values into agent templates during scaffolding.
+**Why it's wrong:** Agent definitions should be static — same content for every project. Dynamic content (project name, config) belongs in OpenCode's `opencode.json` configuration or the agent's runtime context, not baked into the markdown.
+**Do this instead:** Scaffold agent `.md` files verbatim from package data. No templating during `init`. Agents read project-specific context at runtime from the filesystem.
 
 ## Integration Points
 
@@ -432,95 +497,202 @@ Orchestrator updates state.yaml → transitions to next stage
 
 | Service | Integration Pattern | Notes |
 |---------|---------------------|-------|
-| **Git** | Checkpoint commits specs + debates | Use hooks to auto-commit on checkpoint pass |
-| **Data Catalog** | Export metadata from specs YAML | Generated docs include data lineage, ownership |
-| **DBT** | Generate DBT models from specs | DBT project structure follows Anchor naming conventions |
-| **BI Tools** | Generate semantic layer from specs | Anchor → Fact, Attribute → Dimension mappings |
+| **OpenCode** | File-based: `architect init` writes `.opencode/agents/*.md` | No API integration. Agents discovered by OpenCode at runtime from `.opencode/agents/` directory |
+| **PyPI** | Standard: `pip install warehouse-architect` or `uv add warehouse-architect` | Published via UV build + twine/uv publish. Dynamic versioning from git tags |
+| **Git** | Specs and generated code committed alongside project code | Specs are source of truth; generated code is reproducible artifact |
+| **dbt** | Generated `.sql` files placed in dbt project structure | Generator output is valid dbt SQL with Jinja syntax |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| **Orchestrator ↔ Agents** | Task tool with structured prompts | Agents are stateless, orchestrator maintains conversation context |
-| **Agents ↔ Specs** | File I/O (Read YAML, Write YAML) | Data Architect agent writes YAML, other agents read for context |
-| **Orchestrator ↔ Generators** | Bash execution with spec paths | Generators are scripts, not agents. Orchestrator calls via Bash tool |
-| **Checkpoint ↔ Specs** | YAML validation logic | Checkpoint reads specs, applies Anchor Modeling rules, produces report |
+| **CLI ↔ Scaffold** | Function call: `scaffold_agents(target_dir: Path) -> list[Path]` | CLI handles UX (echo, exit codes); scaffold handles logic |
+| **CLI ↔ Generate** | Function call: `generate_all(spec_path: Path, output: Path, target: str) -> list[Path]` | CLI handles UX; generate handles logic |
+| **Spec Reader ↔ Generators** | Frozen dataclass: `Spec` passed as argument | Contract is the Spec type. Reader produces it, generators consume it |
+| **Transforms ↔ Templates** | Dict/tuple context: transforms produce context, templates render it | Templates do no logic — all decisions made in transform functions |
+| **Package ↔ Agent Files** | `importlib.resources`: package bundles agents, scaffold reads them | No runtime coupling — scaffold copies files, then agents run independently in OpenCode |
 
 ## Build Order Implications
 
-**Phase 1: Core Orchestrator (Foundation)**
-- CLP state machine workflow
-- Basic checkpoint validation logic
-- Spec file I/O (read/write YAML)
-- State management (`.warehouse/state.yaml`)
+### Phase 1: Project Foundation + Scaffolding
 
-**Phase 2: Agent System (Debate Capability)**
-- System Analyst agent definition
-- Business Analyst agent definition
-- Data Architect agent (synthesis + spec writing)
-- Veteran Reviewer agent (quality gates)
-- Debate orchestration command (`/wa:debate-anchor`)
+**Build first because:** Everything else depends on the package existing and being installable. Scaffolding is the simplest command (file copy) and proves the package structure works.
 
-**Phase 3: Specification System (Source of Truth)**
-- YAML schema definitions (anchors, attributes, ties, knots)
-- Spec validation logic (JSON Schema or custom)
-- Spec versioning (track changes across CLP stages)
+**Delivers:**
+- `pyproject.toml` with UV build config, Click entry point, dynamic versioning
+- `Makefile` with bootstrap, lint, type, test, check targets
+- `src/warehouse_architect/` package skeleton
+- `cli.py` with Click group + `init` command
+- `scaffold.py` with `scaffold_agents()` pure function
+- `_agents/` with at least one placeholder agent `.md` file
+- Tests: CLI integration test, scaffold unit test
+- CI: lint + type + test on PRs
 
-**Phase 4: Checkpoint System (Quality Gates)**
-- Conceptual checkpoint criteria
-- Logical checkpoint criteria (Anchor Modeling rules)
-- Physical checkpoint criteria (platform-specific validation)
-- Checkpoint reporting (`checkpoint-report.md`)
+**Why first:** You cannot build generators without a package to put them in. You cannot test anything without the test infrastructure. `init` is zero-dependency (no spec parsing, no templates) so it proves the build chain end-to-end.
 
-**Phase 5: Generator System (Code Production)**
-- SQL DDL generator (Anchor → tables)
-- DBT model generator (Anchor → DBT models)
-- Documentation generator (ERD, data dictionary)
-- Generator orchestration (`/wa:generate` command)
+### Phase 2: Spec System (Data Types + Validation)
 
-**Dependencies:**
-- Phase 2 depends on Phase 1 (agents need orchestrator)
-- Phase 3 depends on Phase 2 (specs written by Data Architect agent)
-- Phase 4 depends on Phase 3 (checkpoints validate specs)
-- Phase 5 depends on Phase 4 (generators consume validated specs)
+**Build second because:** Generators consume specs. You must define and validate the spec format before you can generate from it.
+
+**Delivers:**
+- `spec.py` with frozen dataclasses (Spec, Anchor, Attribute, Tie, Knot)
+- `read_spec()` and `validate_spec()` pure functions
+- YAML/JSON parsing with schema validation
+- Hypothesis property-based tests for spec parsing
+- Syrupy snapshot tests for spec round-trip (parse → serialize → parse)
+
+**Depends on:** Phase 1 (package structure exists)
+
+### Phase 3: DAS Generation (Source → Staging)
+
+**Build third because:** DAS is simpler than DAR (fewer transforms, more direct mapping from source schema to staging tables). Proves the generation pipeline before tackling the more complex DAR transforms.
+
+**Delivers:**
+- `das/transforms.py` — pure transform functions
+- `templates/das/*.sql.j2` — Jinja2 templates for staging SQL
+- `generate.py` — orchestration of spec → transform → render pipeline
+- `generate` CLI command (DAS target)
+- Snapshot tests for generated DAS SQL
+
+**Depends on:** Phase 2 (Spec types defined and validated)
+
+### Phase 4: DAR Generation (DAB → Star Schema)
+
+**Build fourth because:** DAR transforms are more complex (Unified Star Schema, bridge tables, dimension/fact derivation). Requires the generation pipeline proven in Phase 3.
+
+**Delivers:**
+- `dar/transforms.py` — pure transform functions for USS pattern
+- `templates/dar/*.sql.j2` — bridge, dimension, fact templates
+- Extension of `generate` CLI command (DAR target)
+- Snapshot tests for generated DAR SQL
+
+**Depends on:** Phase 3 (generation pipeline proven with DAS)
+
+### Phase 5: Agent Definitions + Demo Validation
+
+**Build last because:** Agent definitions are static content (markdown files), not code. They require understanding of the full spec format (Phase 2) and generation capabilities (Phases 3-4) to write effective prompts. Demo validates the complete workflow.
+
+**Delivers:**
+- Complete agent `.md` files for all six roles (Data Architect, System Analyst, Business Analyst, Data Engineer, Analytics Engineer, Veteran Reviewer)
+- Agent prompts reference actual spec format and generation capabilities
+- E-commerce demo scenario exercising full workflow
+- End-to-end integration test: scaffold → write spec → generate → validate
+
+**Depends on:** Phases 1-4 (agents must reference real spec format and generation capabilities)
+
+### Dependency Chain
+
+```
+Phase 1: Foundation + Scaffold
+    ↓
+Phase 2: Spec System
+    ↓
+Phase 3: DAS Generation ─────────┐
+    ↓                             │
+Phase 4: DAR Generation           │
+    ↓                             │
+Phase 5: Agent Definitions + Demo ┘
+```
+
+Phases 3 and 4 could potentially run in parallel since they share the spec system but produce independent output. However, building DAS first lets you prove the generation pipeline pattern before applying it to the more complex DAR case.
+
+## Testing Architecture
+
+### Test Strategy for Functional Python with TDD
+
+| Test Type | Tool | What It Tests | When to Use |
+|-----------|------|---------------|-------------|
+| **Unit tests** | pytest | Individual pure functions (parse, validate, transform) | Every function gets unit tests first (TDD) |
+| **Property-based** | Hypothesis | Spec parsing invariants (round-trip, validation rules) | Spec system — wide input space, many edge cases |
+| **Snapshot tests** | Syrupy | Generated SQL/dbt output matches expected | All generator output — determinism guarantee |
+| **Integration tests** | Click CliRunner | CLI argument parsing, error handling, exit codes | CLI layer only — thin coverage |
+| **Fixture factories** | pytest fixtures + `conftest.py` | Reusable test data (sample specs, temp dirs) | Shared across test modules |
+
+### TDD with Pure Functions
+
+Pure functions make TDD natural:
+
+1. **Write the test** — call the function with known input, assert expected output
+2. **Run it (red)** — function does not exist yet
+3. **Implement** — write the minimal function to pass
+4. **Refactor** — compose, extract, clean up
+
+No mocking needed for pure functions. No test database. No HTTP stubs. The function takes data in and returns data out. If a function needs I/O, push the I/O to the caller and test the pure core.
+
+```python
+# test_spec.py — TDD example
+def test_parse_anchor_from_dict():
+    raw = {"name": "Customer", "identity": "CustomerID",
+           "business_key": "Email", "historized": True}
+    result = parse_anchor(raw)
+    assert result == Anchor(name="Customer", identity="CustomerID",
+                           business_key="Email", historized=True)
+    assert isinstance(result, Anchor)  # frozen dataclass
+
+def test_parse_anchor_default_historized():
+    raw = {"name": "Order", "identity": "OrderID", "business_key": "OrderNumber"}
+    result = parse_anchor(raw)
+    assert result.historized is False  # default
+```
+
+### Property-Based Testing with Hypothesis
+
+For spec parsing, property-based testing catches edge cases that example-based tests miss:
+
+```python
+from hypothesis import given, strategies as st
+
+@given(st.text(min_size=1, max_size=100))
+def test_anchor_name_survives_roundtrip(name):
+    """Any valid string used as anchor name should survive parse → serialize → parse."""
+    raw = {"name": name, "identity": "ID", "business_key": "BK"}
+    anchor = parse_anchor(raw)
+    assert anchor.name == name
+
+@given(st.booleans())
+def test_historized_flag_preserved(historized):
+    raw = {"name": "Test", "identity": "ID", "business_key": "BK",
+           "historized": historized}
+    assert parse_anchor(raw).historized == historized
+```
 
 ## Sources
 
-**Multi-Agent Orchestration:**
-- [AI Agent Orchestration Patterns - Azure Architecture Center](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns)
-- [Choosing the Right Multi-Agent Architecture - LangChain](https://blog.langchain.com/choosing-the-right-multi-agent-architecture/)
-- [Google's Eight Essential Multi-Agent Design Patterns - InfoQ](https://www.infoq.com/news/2026/01/multi-agent-design-patterns/)
-- [Model Context Protocol architecture patterns for multi-agent AI systems - IBM](https://developer.ibm.com/articles/mcp-architecture-patterns-ai-systems/)
+### Package Structure
+- [Python Packaging User Guide: src layout vs flat layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/) — PyPA official recommendation for src layout (HIGH confidence)
+- [pyOpenSci Python Package Structure Guide](https://www.pyopensci.org/python-package-guide/package-structure-code/python-package-structure.html) — Best practices for package organization (HIGH confidence)
 
-**Debate Systems:**
-- [AI models that simulate internal debate dramatically improve accuracy - VentureBeat](https://venturebeat.com/orchestration/ai-models-that-simulate-internal-debate-dramatically-improve-accuracy-on)
-- [Patterns for Democratic Multi-Agent AI: Debate-Based Consensus - Medium](https://medium.com/@edoardo.schepis/patterns-for-democratic-multi-agent-ai-debate-based-consensus-part-1-8ef80557ff8a)
-- [Multi-Agent Debate Strategies to Enhance Requirements Engineering - arXiv](https://arxiv.org/html/2507.05981v1)
+### Agent Template Bundling
+- [importlib.resources — Python 3 Official Docs](https://docs.python.org/3/library/importlib.resources.html) — Standard library API for package resource access (HIGH confidence)
+- [Scientific Python: Including Data Files](https://learn.scientific-python.org/development/patterns/data-files/) — Pattern for bundling non-Python files with importlib.resources (HIGH confidence)
+- [uv Build Backend](https://docs.astral.sh/uv/concepts/build-backend/) — UV's build backend for including package data (HIGH confidence)
+- [uv Issue #11502: Non-source files in packages](https://github.com/astral-sh/uv/issues/11502) — Hatchling recommended for package data inclusion (MEDIUM confidence)
 
-**Workflow Orchestration:**
-- [Temporal: Beyond State Machines for Reliable Distributed Applications](https://temporal.io/blog/temporal-replaces-state-machines-for-distributed-applications)
-- [Checkpointing and Resuming Workflows - Microsoft Learn](https://learn.microsoft.com/en-us/agent-framework/tutorials/workflows/checkpointing-and-resuming)
-- [Agentic Workflows in 2026: The ultimate guide - Vellum](https://www.vellum.ai/blog/agentic-workflows-emerging-architectures-and-design-patterns)
+### OpenCode Agent Format
+- [OpenCode Agents Documentation](https://opencode.ai/docs/agents/) — Official agent definition format (HIGH confidence)
+- [OpenCode Skills Documentation](https://opencode.ai/docs/skills/) — Skills system and directory structure (HIGH confidence)
+- [OpenCode Config Documentation](https://opencode.ai/docs/config/) — Configuration system and .opencode/ structure (HIGH confidence)
+- [Claude Code to OpenCode Agent Conversion Guide](https://gist.github.com/RichardHightower/827c4b655f894a1dd2d14b15be6a33c0) — Field mapping and migration patterns (MEDIUM confidence)
 
-**Claude Code Architecture:**
-- [Build Agent Skills Faster with Claude Code 2.1 - Medium](https://medium.com/@richardhightower/build-agent-skills-faster-with-claude-code-2-1-release-6d821d5b8179)
-- [Claude Skills vs Sub-agents: Architecture and Patterns - Medium](https://medium.com/@SandeepTnvs/claude-skills-vs-sub-agents-architecture-use-cases-and-effective-patterns-3e535c9e0122)
-- [Claude Code Swarm Orchestration Skill - GitHub](https://gist.github.com/kieranklaassen/4f2aba89594a4aea4ad64d753984b2ea)
+### Functional Python Patterns
+- [Python Functional Programming HOWTO — Official Docs](https://docs.python.org/3/howto/functional.html) — Core functional patterns in Python (HIGH confidence)
+- [Writing Click CLIs Without Decorators](https://www.prout.tech/blog/functional_click/) — Functional approach to Click CLI construction (MEDIUM confidence)
+- [Python dataclasses — Official Docs](https://docs.python.org/3/library/dataclasses.html) — Frozen dataclass documentation (HIGH confidence)
 
-**Data Modeling Workflow:**
-- [Data Modeling: Conceptual vs Logical vs Physical - Visual Paradigm](https://online.visual-paradigm.com/knowledge/visual-modeling/conceptual-vs-logical-vs-physical-data-model/)
-- [The Traditional Levels of Data Modeling - Practical Data Modeling](https://practicaldatamodeling.substack.com/p/the-traditional-levels-of-data-modeling)
-- [Developing Data Workflows: From Conceptual Blueprints to Physical Implementation - MDPI](https://www.mdpi.com/2306-5729/10/7/97)
+### Testing Architecture
+- [Getting Started with Property-Based Testing (Hypothesis + Pytest)](https://semaphore.io/blog/property-based-testing-python-hypothesis-pytest) — Hypothesis integration patterns (MEDIUM confidence)
+- [Syrupy Snapshot Testing](https://til.simonwillison.net/pytest/syrupy) — Snapshot testing for deterministic output (MEDIUM confidence)
+- [TDD with pytest — Real Python](https://realpython.com/courses/test-driven-development-pytest/) — TDD methodology with pytest (HIGH confidence)
 
-**Specification-Driven Generation:**
-- [Understanding Specification-Driven Code Generation - arXiv](https://arxiv.org/pdf/2601.03878)
-- [Deterministic code generation - Intent Architect](https://docs.intentarchitect.com/articles/key-concepts/deterministic-codegen.html)
+### UV and Build System
+- [UV: Creating Projects](https://docs.astral.sh/uv/concepts/projects/init/) — `uv init --lib` and src layout (HIGH confidence)
+- [Dynamic Versioning for UV Projects](https://pydevtools.com/handbook/how-to/how-to-add-dynamic-versioning-to-uv-projects/) — Git tag versioning with hatchling + uv-dynamic-versioning (MEDIUM confidence)
 
-**Anchor Modeling:**
-- [Anchor Modeling - Wikipedia](https://en.wikipedia.org/wiki/Anchor_modeling)
-- [Anchor Modeling - Official Site](https://www.anchormodeling.com/)
-- [Anchor Modeling - ResearchGate](https://www.researchgate.net/publication/229347991_Anchor_modeling_-_Agile_information_modeling_in_evolving_data_environments)
+### SQL/dbt Code Generation
+- [JinjaSQL — SQL Template Language](https://github.com/sripathikrishnan/jinjasql) — Jinja2 for SQL generation patterns (MEDIUM confidence)
+- [dbt Jinja and Macros](https://docs.getdbt.com/docs/build/jinja-macros) — dbt's use of Jinja for SQL templating (HIGH confidence)
 
 ---
-*Architecture research for: Warehouse Architect (Claude Code Multi-Agent Skill)*
+*Architecture research for: Warehouse Architect (Python CLI + OpenCode Agents)*
 *Researched: 2026-02-07*
+*Replaces: previous architecture research (Claude Code skill, TypeScript stack — project pivoted to Python CLI + OpenCode agents)*
