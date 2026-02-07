@@ -99,6 +99,7 @@ markers = [
 [tool.coverage.run]
 source = ["data_architect"]
 branch = true
+omit = ["src/data_architect/__main__.py"]
 
 [tool.coverage.report]
 fail_under = 90

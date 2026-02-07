@@ -4,5 +4,5 @@ import importlib.metadata
 
 try:
     __version__ = importlib.metadata.version("data-architect")
-except importlib.metadata.PackageNotFoundError:
+except importlib.metadata.PackageNotFoundError:  # pragma: no cover
     __version__ = "0.0.0"
