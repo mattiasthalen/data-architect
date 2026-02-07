@@ -1,146 +1,149 @@
-# Requirements: Warehouse Architect
+# Requirements: Data Architect
 
 **Defined:** 2026-02-07
 **Core Value:** The DAB layer must produce a correct, methodology-compliant Anchor Model through genuine agent debate — not template generation.
 
-## v1 Requirements
+## Milestone 1 Requirements
 
-### Orchestration
+Milestone 1 scope: `architect init` + working agents in OpenCode via `/da:*` commands.
 
-- [ ] **ORCH-01**: CLP workflow enforces Conceptual → Logical → Physical progression with checkpoint gates between stages
-- [ ] **ORCH-02**: System Analyst and Business Analyst agents debate each modeling decision through structured argumentation
-- [ ] **ORCH-03**: Data Architect agent synthesizes debate positions and produces a recommendation
-- [ ] **ORCH-04**: Anchor Modeling methodology rules are applied as an objective check on architect's recommendation
-- [ ] **ORCH-05**: User receives full debate context (arguments, synthesis, rules check) and makes final decision
-- [ ] **ORCH-06**: Veteran Reviewer agent critiques completed model for anti-patterns and methodology violations
-- [ ] **ORCH-07**: Workflow state persists across sessions (current CLP stage, decisions made, pending debates)
-- [ ] **ORCH-08**: Each debate decision is logged with rationale for audit trail
+### Project Foundation
+
+- [ ] **PROJ-01**: Python package with src/ layout, UV + Hatchling build system, pip-installable as `data-architect`
+- [ ] **PROJ-02**: Pure functional Python enforced — no classes, frozen dataclasses for data, pure functions for behavior
+- [ ] **PROJ-03**: Makefile with targets: bootstrap (install deps + pre-commit), lint, type, test, check (runs all three)
+- [ ] **PROJ-04**: Pre-commit hooks enforce linting, type checking, and conventional commit messages
+- [ ] **PROJ-05**: CI pipeline runs lint + type + test on pull requests
+- [ ] **PROJ-06**: Dynamic versioning from git tags — no hardcoded version strings
+- [ ] **PROJ-07**: TDD enforced — tests written before implementation for all pure functions
+
+### CLI
+
+- [ ] **CLI-01**: `architect init` command creates all files in cwd with zero prompts and clear output showing every file created
+- [ ] **CLI-02**: Idempotent re-run — skip existing files with warning, `--force` flag to overwrite
+- [ ] **CLI-03**: `--dry-run` flag shows what would be created without writing files
+- [ ] **CLI-04**: `--dir` flag scaffolds into directory other than cwd
+- [ ] **CLI-05**: `--help` with usage examples for all commands
+- [ ] **CLI-06**: Human-readable error messages for common failures (not writable, existing files, etc.)
 
 ### Agent Definitions
 
-- [ ] **AGNT-01**: System/Integration Analyst agent with technical/source-system persona and prompting
-- [ ] **AGNT-02**: Business Analyst agent with domain/business-needs persona and prompting
-- [ ] **AGNT-03**: Data Architect agent with Anchor Modeling expertise and synthesis capability
-- [ ] **AGNT-04**: Data Engineer agent with physical modeling and performance optimization focus
-- [ ] **AGNT-05**: Analytics Engineer agent with consumption/reporting layer focus
-- [ ] **AGNT-06**: Veteran Reviewer agent with grumpy veteran persona, anti-pattern detection, methodology critique
+- [ ] **AGNT-01**: System/Integration Analyst agent — technical/source-system persona, understands data structures and system constraints
+- [ ] **AGNT-02**: Business Analyst agent — domain/business-needs persona, thinks in business terms and user questions
+- [ ] **AGNT-03**: Data Architect agent — entry point, Anchor Modeling expertise, synthesizes debate, orchestrates CLP workflow
+- [ ] **AGNT-04**: Data Engineer agent — physical modeling specialist, performance, indexing, partitioning concerns
+- [ ] **AGNT-05**: Analytics Engineer agent — consumption/reporting perspective, understands how warehouse will be queried
+- [ ] **AGNT-06**: Veteran Reviewer agent — grumpy veteran persona, anti-pattern detection, methodology critique
 
-### Modeling
+### Agent Quality
 
-- [ ] **MODL-01**: User can start from business description ("we sell bikes") and get initial conceptual entities extracted
-- [ ] **MODL-02**: User can provide source schemas (Swagger, OData, ERD) to understand existing source systems
-- [ ] **MODL-03**: User can provide business questions to inform what the warehouse must answer
-- [ ] **MODL-04**: Anchor Model core constructs supported: anchors, attributes, ties, knots
-- [ ] **MODL-05**: Temporal extensions supported: historized attributes with valid-from/valid-to
-- [ ] **MODL-06**: Historization strategy decided at conceptual level and enforced through logical and physical
-- [ ] **MODL-07**: Knot tables for static reference data with low cardinality
+- [ ] **QUAL-01**: Agent prompts encode deep Anchor Modeling methodology rules (anchor vs attribute vs tie vs knot criteria, historization, naming conventions)
+- [ ] **QUAL-02**: CLP debate protocol encoded in agent prompts — agents argue through Conceptual → Logical → Physical stages
+- [ ] **QUAL-03**: Debate termination logic — bounded iterations, convergence detection, escalation to user for final decision
+- [ ] **QUAL-04**: System Analyst and Business Analyst have opposing default positions to prevent premature consensus
+- [ ] **QUAL-05**: Veteran Reviewer has concrete anti-pattern checklists, not vague "review for quality" instructions
 
-### Specifications
+### OpenCode Integration
 
-- [ ] **SPEC-01**: YAML/JSON specification format for all Anchor Model elements with Zod schema validation
-- [ ] **SPEC-02**: Specs versioned with explicit version field; generators check compatibility
-- [ ] **SPEC-03**: Markdown documentation auto-rendered from YAML/JSON specs
-- [ ] **SPEC-04**: Naming conventions configurable and enforced during spec validation
-- [ ] **SPEC-05**: Specs organized by CLP stage (conceptual/, logical/, physical/)
+- [ ] **OCODE-01**: All 6 agent files in `.opencode/agents/` with valid YAML frontmatter (description, model, tools, permissions)
+- [ ] **OCODE-02**: AGENTS.md in project root with shared ADSS/Anchor Modeling methodology context for all agents
+- [ ] **OCODE-03**: opencode.json pre-configured — default agent, model assignments, tool permissions, team works out of the box
+- [ ] **OCODE-04**: OpenCode skills in `.opencode/skills/da-*/SKILL.md` — invoked as `/da:*` commands
+- [ ] **OCODE-05**: Spec format bootstrapping — example YAML schemas so agents produce consistent output format
 
-### Code Generation
+### Modeling (via Agents)
 
-- [ ] **GENR-01**: SQL DDL generator produces CREATE TABLE statements from validated specs
-- [ ] **GENR-02**: DDL generation supports multiple SQL dialects (platform-agnostic with targets)
-- [ ] **GENR-03**: dbt model generator produces dbt models from validated specs
-- [ ] **GENR-04**: Mermaid diagram generator produces ER diagrams from specs
-- [ ] **GENR-05**: Schema evolution generator produces non-destructive migration scripts (additive only)
-- [ ] **GENR-06**: All generators are deterministic — same spec always produces same output
-- [ ] **GENR-07**: Generated code includes traceability comments (spec version, generation timestamp)
+- [ ] **MODL-01**: User can start from business description and agents extract initial conceptual entities
+- [ ] **MODL-02**: User can point to source schemas (Swagger, OData, ERD) in filesystem and agents incorporate them
+- [ ] **MODL-03**: User can provide business questions and agents use them to inform warehouse design
+- [ ] **MODL-04**: Agents produce YAML/JSON specs as output of CLP debate
 
-### Reference Implementation
+## Milestone 2 Requirements
 
-- [ ] **DEMO-01**: Demo scenario (e-commerce) validates full workflow from business description through generated code
-- [ ] **DEMO-02**: Roenbaeck's Anchor Modeling repo (XML format, generators) studied and referenced for methodology rules
+Deferred to milestone 2: `architect generate` for deterministic DAS/DAR generation.
 
-## v2 Requirements
+### Spec System
 
-### DAS Layer (Data According to System)
+- **SPEC-01**: Frozen dataclasses for all Anchor Model elements (Spec, Anchor, Attribute, Tie, Knot)
+- **SPEC-02**: YAML/JSON parsing with schema validation for all specs
+- **SPEC-03**: Specs versioned with explicit version field; generators check compatibility
+- **SPEC-04**: Naming conventions configurable and enforced during spec validation
+- **SPEC-05**: Specs organized by CLP stage (conceptual/, logical/, physical/)
 
-- **DAS-01**: Historized raw data ingestion from source systems
-- **DAS-02**: Source system metadata tracking and provenance
-- **DAS-03**: DAS → DAB transformation orchestration
+### DAS Generation
 
-### DAR Layer (Data According to Requirements)
+- **DAS-01**: `architect generate` produces DAS scripts from source schemas (deterministic)
+- **DAS-02**: Jinja2 templates for SQL generation — templates do no logic, all decisions in pure Python transforms
+- **DAS-03**: Snapshot tests guarantee deterministic output
 
-- **DAR-01**: Unified Star Schema (Puppini) for reporting/consumption layer
-- **DAR-02**: Isolated data products per ADSS principles
-- **DAR-03**: DAB → DAR transformation orchestration
+### DAR Generation
 
-### Extended Platform Support
+- **DAR-01**: `architect generate` produces DAR scripts from DAB output (deterministic, Unified Star Schema)
+- **DAR-02**: Bridge table, dimension, and fact table derivation
+- **DAR-03**: E-commerce demo scenario validates full end-to-end workflow
 
-- **PLAT-01**: Additional SQL dialect generators (BigQuery, Redshift, Databricks)
-- **PLAT-02**: Agent personality configuration (conservative vs aggressive design)
-- **PLAT-03**: Schema evolution impact analysis before applying migrations
+### CD Pipeline
+
+- **CD-01**: CD pipeline packages release and publishes to PyPI on tagged releases
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Visual drag-drop modeling UI | YAML-first, GitOps approach — diagrams generated from specs, not the other way around |
-| Real-time collaborative editing | Anchor Modeling requires deliberation; async PR-based workflow with structured debate rounds |
-| Support all modeling methodologies | Opinionated: ADSS + Anchor Modeling + USS. Diluting focus defeats the purpose |
-| Fully autonomous deployment | Schema changes require human approval; AI generates, humans review and execute |
-| Web application | Claude Code skill — runs in CLI, not browser |
-| Real-time streaming support | Batch-first for v1; different problem domain |
+| Interactive init prompts | Agent team is opinionated and fixed — nothing to ask. Adds friction. |
+| Template engine during init | Files are not parameterized — Markdown copied verbatim. YAGNI. |
+| Agent orchestration in CLI | CLI scaffolds files, OpenCode runs agents. User drives manually. |
+| Runtime dependency on OpenCode | Scaffold files only — no import or shell out to OpenCode. |
+| Auto-update of scaffolded files | Need merge strategy first — users will customize agent prompts. |
+| Plugin system for custom agents | Premature abstraction — Markdown files ARE the API. |
+| Web UI / dashboard | CLI tool. OpenCode provides conversation UI. |
+| Visual drag-drop modeling | YAML-first, GitOps approach. |
+| Support all modeling methodologies | Opinionated: ADSS + Anchor Modeling + USS. |
+| Real-time streaming | Batch-first; different problem domain. |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ORCH-01 | Phase 1 | Pending |
-| ORCH-02 | Phase 1 | Pending |
-| ORCH-03 | Phase 1 | Pending |
-| ORCH-04 | Phase 1 | Pending |
-| ORCH-05 | Phase 1 | Pending |
-| ORCH-06 | Phase 1 | Pending |
-| ORCH-07 | Phase 1 | Pending |
-| ORCH-08 | Phase 1 | Pending |
-| AGNT-01 | Phase 1 | Pending |
-| AGNT-02 | Phase 1 | Pending |
-| AGNT-03 | Phase 1 | Pending |
-| AGNT-04 | Phase 1 | Pending |
-| AGNT-05 | Phase 1 | Pending |
-| AGNT-06 | Phase 1 | Pending |
-| MODL-01 | Phase 2 | Pending |
-| MODL-02 | Phase 2 | Pending |
-| MODL-03 | Phase 2 | Pending |
-| MODL-04 | Phase 3 | Pending |
-| MODL-05 | Phase 3 | Pending |
-| MODL-06 | Phase 3 | Pending |
-| MODL-07 | Phase 3 | Pending |
-| SPEC-01 | Phase 2 | Pending |
-| SPEC-02 | Phase 2 | Pending |
-| SPEC-03 | Phase 2 | Pending |
-| SPEC-04 | Phase 2 | Pending |
-| SPEC-05 | Phase 2 | Pending |
-| GENR-01 | Phase 4 | Pending |
-| GENR-02 | Phase 4 | Pending |
-| GENR-03 | Phase 4 | Pending |
-| GENR-04 | Phase 4 | Pending |
-| GENR-05 | Phase 4 | Pending |
-| GENR-06 | Phase 4 | Pending |
-| GENR-07 | Phase 4 | Pending |
-| DEMO-01 | Phase 5 | Pending |
-| DEMO-02 | Phase 3 | Pending |
+| PROJ-01 | TBD | Pending |
+| PROJ-02 | TBD | Pending |
+| PROJ-03 | TBD | Pending |
+| PROJ-04 | TBD | Pending |
+| PROJ-05 | TBD | Pending |
+| PROJ-06 | TBD | Pending |
+| PROJ-07 | TBD | Pending |
+| CLI-01 | TBD | Pending |
+| CLI-02 | TBD | Pending |
+| CLI-03 | TBD | Pending |
+| CLI-04 | TBD | Pending |
+| CLI-05 | TBD | Pending |
+| CLI-06 | TBD | Pending |
+| AGNT-01 | TBD | Pending |
+| AGNT-02 | TBD | Pending |
+| AGNT-03 | TBD | Pending |
+| AGNT-04 | TBD | Pending |
+| AGNT-05 | TBD | Pending |
+| AGNT-06 | TBD | Pending |
+| QUAL-01 | TBD | Pending |
+| QUAL-02 | TBD | Pending |
+| QUAL-03 | TBD | Pending |
+| QUAL-04 | TBD | Pending |
+| QUAL-05 | TBD | Pending |
+| OCODE-01 | TBD | Pending |
+| OCODE-02 | TBD | Pending |
+| OCODE-03 | TBD | Pending |
+| OCODE-04 | TBD | Pending |
+| OCODE-05 | TBD | Pending |
+| MODL-01 | TBD | Pending |
+| MODL-02 | TBD | Pending |
+| MODL-03 | TBD | Pending |
+| MODL-04 | TBD | Pending |
 
 **Coverage:**
-- v1 requirements: 35 total
-- Mapped to phases: 35 (100% coverage)
-- Unmapped: 0
-
-**Phase Distribution:**
-- Phase 1 (Foundation): 14 requirements
-- Phase 2 (CLP Workflow): 8 requirements
-- Phase 3 (Anchor Modeling): 5 requirements
-- Phase 4 (Code Generation): 7 requirements
-- Phase 5 (Validation): 1 requirement
+- Milestone 1 requirements: 33 total
+- Mapped to phases: 0 (awaiting roadmap)
+- Unmapped: 33
 
 ---
 *Requirements defined: 2026-02-07*
-*Last updated: 2026-02-07 after roadmap creation*
+*Last updated: 2026-02-07 after pivot*
