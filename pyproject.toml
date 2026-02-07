@@ -1,0 +1,110 @@
+[project]
+name = "data-architect"
+dynamic = ["version"]
+description = "Scaffold OpenCode AI agents and generate data warehouse scripts"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.13"
+authors = [{ name = "Data Architect Contributors" }]
+keywords = ["data-warehouse", "anchor-modeling", "opencode", "cli"]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.scripts]
+architect = "data_architect.cli:app"
+
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/data_architect"]
+
+[tool.uv-dynamic-versioning]
+fallback-version = "0.0.0+unknown"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.0",
+    "pytest-cov>=7.0.0",
+    "hypothesis>=6.151.0",
+    "mypy>=1.19.0",
+    "ruff>=0.15.0",
+]
+
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "I",     # isort
+    "SIM",   # flake8-simplify
+    "TC",    # flake8-type-checking (was TCH, renamed in 0.15.0)
+    "RUF",   # ruff-specific rules
+    "PT",    # flake8-pytest-style
+    "ARG",   # flake8-unused-arguments
+    "C4",    # flake8-comprehensions
+    "T20",   # flake8-print (no print statements)
+    "ANN",   # flake8-annotations (enforce type annotations)
+    "S",     # flake8-bandit (security)
+]
+ignore = [
+    "S101",    # Use of assert (needed in tests, handled by per-file-ignores)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "ANN", "ARG"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_reexport = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=data_architect --cov-report=term-missing --strict-markers -x"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
+[tool.coverage.run]
+source = ["data_architect"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.",
+]
