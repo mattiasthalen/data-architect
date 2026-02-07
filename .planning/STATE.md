@@ -4,15 +4,15 @@
 
 See: .planning/PROJECT.md (updated 2026-02-07)
 
-**Core value:** The DAB layer must produce a correct, methodology-compliant Anchor Model through genuine agent debate — system analyst vs. business analyst, architect synthesis, rule validation, user decision — not just template generation.
-**Current focus:** Phase 1 - Foundation
+**Core value:** The DAB layer must produce a correct, methodology-compliant Anchor Model through genuine agent debate -- not just template generation.
+**Current focus:** Phase 1 - Project Foundation
 
 ## Current Position
 
-Phase: 1 of 5 (Foundation)
+Phase: 1 of 4 (Project Foundation)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-02-07 — Roadmap created with 5 phases covering all 35 v1 requirements
+Last activity: 2026-02-07 -- Roadmap created with 4 phases covering all 33 milestone 1 requirements
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -42,8 +42,9 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- Roadmap: 5 phases derived from requirements with 100% coverage — Foundation → CLP → Anchor → Generation → Validation
-- Phase 1 scope: All orchestration and agent definition requirements (14 total) to establish debate infrastructure before modeling work
+- Roadmap: 4 phases for milestone 1 -- Foundation, CLI, Agents+OpenCode, Quality+Modeling
+- Milestone 1 scope limited to `architect init` + working agents; `architect generate` deferred to milestone 2
+- Phases 3-4 split structural agent scaffolding from behavioral agent quality (write agents, then deepen them)
 
 ### Pending Todos
 
@@ -51,19 +52,12 @@ None yet.
 
 ### Blockers/Concerns
 
-**Phase 2 (CLP Workflow):**
-- Anchor Modeling conceptual-to-logical translation rules need deeper research — no TypeScript reference implementation exists, must study Java Anchor Modeler
-
-**Phase 3 (Anchor Modeling):**
-- Join elimination behavior on target databases needs validation — theory says 6NF optimizers handle it, practice may differ by platform
-
-**Phase 5 (Validation):**
-- Nunjucks-Jinja compatibility edge cases for dbt integration need testing with dbt Core execution
+None yet.
 
 ## Session Continuity
 
 Last session: 2026-02-07 (roadmap creation)
-Stopped at: ROADMAP.md and STATE.md created, REQUIREMENTS.md traceability pending update
+Stopped at: ROADMAP.md and STATE.md created, ready to plan Phase 1
 Resume file: None
 
 ---
