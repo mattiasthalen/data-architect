@@ -74,17 +74,22 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 10. Specs written to filesystem as YAML/JSON
 
 **User Flow:**
-1. `pip install warehouse-architect`
-2. `architect init` → agent definitions appear in `.opencode/`
-3. Open OpenCode, start conversation with Data Architect agent
+1. `pip install data-architect`
+2. `architect init` → agent definitions + skills appear in `.opencode/`
+3. Open OpenCode, invoke `/da:start` (or other `/da:*` commands)
 4. Describe business, point to source docs, state business questions
 5. Agents debate through CLP, user makes final calls
 6. Specs land in cwd as YAML/JSON
 7. `architect generate` → DAS and DAR scripts produced
 
+**OpenCode Integration:**
+- Agents live in `.opencode/agents/` as Markdown with YAML frontmatter
+- Skills live in `.opencode/skills/da-*/SKILL.md` — invoked as `/da:*` commands
+- Project rules in `AGENTS.md`, config in `opencode.json`
+
 **Delivery:**
-- Python package on PyPI
-- OpenCode agent definitions (research OpenCode.ai agent format)
+- Python package on PyPI (`data-architect`)
+- OpenCode agent definitions + skills (scaffolded by `architect init`)
 - Target user: data engineers
 
 ## Constraints
