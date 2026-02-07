@@ -48,7 +48,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Scaffold engine (TDD): pure functions, file manifest, conflict handling, dry-run
+- [x] 02-01-PLAN.md — Scaffold engine (TDD): pure functions, file manifest, conflict handling, dry-run
 - [ ] 02-02-PLAN.md — Typer CLI wiring, symbol output, error handling, integration tests
 
 ### Phase 3: Agent Definitions + OpenCode Integration
@@ -91,10 +91,10 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Project Foundation | 2/2 | Complete | 2026-02-07 |
-| 2. CLI Scaffolding | 0/2 | Not started | - |
+| 2. CLI Scaffolding | 1/2 | In progress | - |
 | 3. Agent Definitions + OpenCode Integration | 0/0 | Not started | - |
 | 4. Agent Quality + Modeling Workflows | 0/0 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-07 — Phase 1 complete*
+*Last updated: 2026-02-07 — Phase 2 Plan 1 complete*
