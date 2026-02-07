@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Claude Code skill that orchestrates a team of AI agents — each playing a real data team role — to design data warehouses using Patrik Lager's Analytical Data Storage System (ADSS). Users describe their business, optionally provide source schemas and business questions, and the agents collaborate through Conceptual, Logical, and Physical modeling to produce structured specifications. Deterministic generators then transform those specs into platform-specific SQL, dbt models, and diagrams.
+A Python CLI tool that scaffolds AI agent definitions into a project directory and generates deterministic data warehouse scripts. `architect init` places OpenCode-compatible agent definitions into `.opencode/` — a team of data professionals (Data Architect, System Analyst, Business Analyst, Data Engineer, Analytics Engineer, Veteran Reviewer) that guide users through designing a DAB layer using Anchor Modeling. `architect generate` produces deterministic DAS and DAR scripts from the specs those agents create. Users drive the agents manually through OpenCode.
 
 ## Core Value
 
@@ -16,26 +16,28 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 
 ### Active
 
-- [ ] Agent team: Data Architect, Data Engineer, Analytics Engineer, System/Integration Analyst, Business Analyst, Veteran Reviewer
-- [ ] DAB modeling through CLP progression (Conceptual → Logical → Physical)
-- [ ] System Analyst and Business Analyst debate pattern for DAB modeling
+- [ ] Python CLI with `architect init` and `architect generate` commands
+- [ ] `architect init` scaffolds OpenCode agent definitions into `.opencode/` in cwd
+- [ ] Agent team: Data Architect (entry point), Data Engineer, Analytics Engineer, System/Integration Analyst, Business Analyst, Veteran Reviewer
+- [ ] Data Architect agent gathers business context, reads source docs from filesystem, orchestrates CLP debate
+- [ ] System Analyst and Business Analyst debate pattern for DAB modeling through CLP stages
 - [ ] Data Architect synthesizes debate and recommends resolution
 - [ ] Anchor Modeling rules applied as objective check
 - [ ] User makes final decision on modeling disputes
 - [ ] Veteran Reviewer critiques output for anti-patterns and methodology violations
-- [ ] YAML/JSON specification format as source of truth
-- [ ] Markdown rendering of specs for human consumption
-- [ ] Multiple entry points: business description, source schemas (Swagger, ERD, OData), business questions
-- [ ] Deterministic generators: specs → platform-specific DDL, dbt models, diagrams
+- [ ] YAML/JSON specification format as source of truth (output of agent debate)
+- [ ] Multiple input types: business description, source schemas (Swagger, ERD, OData), business questions — read from filesystem
+- [ ] `architect generate` produces DAS scripts from source schemas (deterministic)
+- [ ] `architect generate` produces DAR scripts from DAB output (deterministic)
 - [ ] Demo scenario validation (e-commerce or similar)
 
 ### Out of Scope
 
-- DAS layer implementation — v2 (historized raw data, simpler than DAB)
-- DAR layer implementation — v2 (Unified Star Schema, depends on DAB being solid)
-- Web UI — this is a Claude Code skill, not a web app
-- Real-time streaming support — batch-first for v1
-- Specific database platform optimization — platform-agnostic generators first
+- Web UI — this is a CLI tool, agents run in OpenCode
+- Real-time streaming support — batch-first
+- `architect` CLI orchestrating agents — agents are driven manually through OpenCode
+- Claude Code skill — pivoted to OpenCode agents + Python CLI
+- DAS/DAR agent debate — these layers are deterministic transforms, not probabilistic
 
 ## Context
 
@@ -43,53 +45,71 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 - **ADSS** (Patrik Lager): Three-layer architecture — DAS (Data According to System), DAB (Data According to Business), DAR (Data According to Requirements). Unidirectional flow DAS → DAB → DAR. Each layer decouples the next from upstream changes.
 - **Anchor Modeling** (DAB): Highly normalized technique — anchors, attributes, ties, knots. Each attribute is its own table. Schema evolution is non-destructive (additive only). Designed for agility and resilience to change.
 - **Unified Star Schema** (Francesco Puppini, DAR): Single bridge table connecting all dimensions to facts. Eliminates fan traps and chasm traps. Isolated data products per ADSS principles.
-- **CLP**: Conceptual → Logical → Physical modeling. The classic progression from business truth to implementation.
+- **CLP**: Conceptual → Logical → Physical modeling. Applies only to DAB (probabilistic, needs AI reasoning). DAS and DAR are deterministic transformations.
 
 **Architecture Pattern:**
-- AI agents handle creative/analytical work (understanding the business, debating models, checking methodology)
-- Deterministic code generators handle mechanical transformation (specs → SQL/dbt/diagrams)
-- Specs (YAML/JSON) are the contract between agents and generators
+- **CLI tool** (`architect`): Python package, pip-installable. Two commands: `init` (scaffold) and `generate` (deterministic code gen).
+- **OpenCode agents** (`.opencode/`): Agent definitions scaffolded by `init`. User drives them manually in OpenCode. Agents handle creative/analytical work — understanding the business, debating models, checking methodology.
+- **Specs as contract**: YAML/JSON specs produced by agent debate are the bridge between probabilistic (agents) and deterministic (generators).
+- **Deterministic generators**: `architect generate` transforms specs → DAS scripts (from source schemas) and DAR scripts (from DAB output). No AI involved.
 
 **Agent Team Roles:**
-- **Data Architect**: Overall design authority. Reviews debates, synthesizes recommendations, enforces naming standards and consistency across the model.
+- **Data Architect**: Entry point and design authority. Gathers business context and source docs from filesystem. Orchestrates debate, synthesizes recommendations, enforces naming standards and consistency.
 - **Data Engineer**: Physical modeling specialist. Performance, indexing, partitioning, orchestration concerns.
-- **Analytics Engineer**: DAR layer owner (v2). Understands how the warehouse will be consumed.
+- **Analytics Engineer**: DAR layer perspective. Understands how the warehouse will be consumed.
 - **System/Integration Analyst**: Source system expert. Understands what data exists, how it's structured, what it means technically.
 - **Business Analyst**: Business domain expert. Understands what the business needs, how they think about their data, what questions they ask.
-- **Veteran Reviewer**: Grumpy, battle-scarred DW engineer who's seen every anti-pattern since Inmon's early days. Critiques everything. If it smells wrong, he'll tell you why — and what disaster he saw it cause in 2003.
+- **Veteran Reviewer**: Grumpy, battle-scarred DW engineer who's seen every anti-pattern since Inmon's early days. Critiques everything.
 
 **Debate Pattern (DAB):**
-1. System Analyst presents source-system perspective on entities and relationships
-2. Business Analyst presents business-domain perspective
-3. They argue through CLP stages — what's an anchor? what's an attribute? what's a tie?
-4. Data Architect synthesizes and recommends
-5. Anchor Modeling methodology rules are applied as an objective check
-6. User gets the full picture and makes the final call
-7. Veteran Reviewer critiques the final model
+1. User talks to Data Architect — describes business, points to source docs in cwd
+2. Data Architect reads source files, establishes context
+3. System Analyst presents source-system perspective on entities and relationships
+4. Business Analyst presents business-domain perspective
+5. They argue through CLP stages — what's an anchor? what's an attribute? what's a tie?
+6. Data Architect synthesizes and recommends
+7. Anchor Modeling methodology rules are applied as an objective check
+8. User gets the full picture and makes the final call
+9. Veteran Reviewer critiques the final model
+10. Specs written to filesystem as YAML/JSON
+
+**User Flow:**
+1. `pip install warehouse-architect`
+2. `architect init` → agent definitions appear in `.opencode/`
+3. Open OpenCode, start conversation with Data Architect agent
+4. Describe business, point to source docs, state business questions
+5. Agents debate through CLP, user makes final calls
+6. Specs land in cwd as YAML/JSON
+7. `architect generate` → DAS and DAR scripts produced
 
 **Delivery:**
-- Claude Code skill (like GSD / get-shit-done)
-- Orchestrator prompts, specialized agent prompts, templates
+- Python package on PyPI
+- OpenCode agent definitions (research OpenCode.ai agent format)
 - Target user: data engineers
 
 ## Constraints
 
-- **Platform**: Claude Code skill — must work within Claude Code's agent/tool framework
-- **Architecture**: Must follow GSD-like patterns — orchestrators, agents, templates, structured artifacts
+- **Language**: Python — pure functional style, no classes, pure functions + immutable data (dataclasses/NamedTuples for data, functions for behavior)
+- **Testing**: TDD mandatory — tests written before implementation
+- **Platform**: OpenCode.ai agents — must conform to OpenCode's agent definition format
+- **CLI**: Python CLI (`architect init`, `architect generate`)
 - **Methodology**: ADSS + Anchor Modeling + USS are non-negotiable. This is the opinion.
-- **v1 Focus**: DAB layer with Anchor Modeling and CLP debate. DAS/DAR deferred to v2.
-- **Spec Format**: YAML/JSON source of truth, Markdown rendered. Generators consume specs, not prose.
+- **Separation**: CLP debate (probabilistic, agents) vs DAS/DAR generation (deterministic, code). Clear boundary.
+- **Spec Format**: YAML/JSON source of truth. Generators consume specs, not prose.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| DAB-first for v1 | Hardest layer, most value, proves the debate pattern | — Pending |
+| Pivot from Claude Code skill to Python CLI + OpenCode agents | More flexibility, provider-agnostic, broader reach | — Pending |
+| Pure functional Python, no classes | Immutability reduces bugs, easier to test, fits TDD mandate | — Pending |
+| TDD mandatory | Correctness is critical for data warehouse design tooling | — Pending |
+| OpenCode agents instead of Claude-specific | Provider flexibility, OpenCode.ai agent ecosystem | — Pending |
+| DAB is probabilistic (agents), DAS/DAR are deterministic (generators) | CLP debate needs AI reasoning; DAS/DAR are mechanical transforms from known inputs | — Pending |
+| Data Architect as entry point agent | Natural design authority, gathers context before orchestrating debate | — Pending |
 | Specs as contract between agents and generators | Clean separation of AI creativity and deterministic output | — Pending |
-| YAML/JSON + rendered Markdown | Machine-readable for generators, human-readable for review | — Pending |
 | Anchor Modeling for DAB | Maximum agility — non-destructive schema evolution, resilient to change | — Pending |
-| Agent roles mirror real data team | Natural division of concerns, realistic debate dynamics | — Pending |
-| Veteran Reviewer as quality gate | Catches anti-patterns, enforces methodology, adds personality | — Pending |
+| Milestone 1: init + agents only | Prove the agent experience before building generators | — Pending |
 
 ---
-*Last updated: 2026-02-07 after initialization*
+*Last updated: 2026-02-07 after pivot*
