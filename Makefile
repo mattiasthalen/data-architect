@@ -37,3 +37,7 @@ check: lint type test  ## Run all checks (lint + type + test)
 .PHONY: clean
 clean:  ## Remove build artifacts
 	rm -rf dist/ build/ *.egg-info .mypy_cache .pytest_cache .coverage htmlcov/ .ruff_cache
+
+.PHONY: claude
+claude:  ## Run Claude with full permissions
+	claude --dangerously-skip-permissions
