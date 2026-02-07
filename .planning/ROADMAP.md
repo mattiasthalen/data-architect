@@ -12,7 +12,7 @@ Milestone 1 delivers a pip-installable Python CLI (`architect init`) that scaffo
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Project Foundation** - Pure-functional Python package with build system, CI, and TDD infrastructure
+- [x] **Phase 1: Project Foundation** - Pure-functional Python package with build system, CI, and TDD infrastructure
 - [ ] **Phase 2: CLI Scaffolding** - `architect init` command with all flags, error handling, and file output
 - [ ] **Phase 3: Agent Definitions + OpenCode Integration** - All 6 agent files, AGENTS.md, opencode.json, and skills scaffolded correctly
 - [ ] **Phase 4: Agent Quality + Modeling Workflows** - Methodology-deep prompts, CLP debate protocol, and end-to-end modeling capability
@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md — Package skeleton with pyproject.toml, source stubs, and TDD tests
-- [ ] 01-02-PLAN.md — Makefile, git hooks, CI workflow, and full pipeline validation
+- [x] 01-02-PLAN.md — Makefile, git hooks, CI workflow, and full pipeline validation
 
 ### Phase 2: CLI Scaffolding
 **Goal**: Users can run `architect init` and get files scaffolded into their project directory with clear feedback, idempotent behavior, and helpful errors
@@ -90,11 +90,11 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Project Foundation | 1/2 | In progress | - |
+| 1. Project Foundation | 2/2 | Complete | 2026-02-07 |
 | 2. CLI Scaffolding | 0/0 | Not started | - |
 | 3. Agent Definitions + OpenCode Integration | 0/0 | Not started | - |
 | 4. Agent Quality + Modeling Workflows | 0/0 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-07*
+*Last updated: 2026-02-07 — Phase 1 complete*
