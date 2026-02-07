@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Package skeleton with pyproject.toml, source stubs, and TDD tests
+- [x] 01-01-PLAN.md — Package skeleton with pyproject.toml, source stubs, and TDD tests
 - [ ] 01-02-PLAN.md — Makefile, git hooks, CI workflow, and full pipeline validation
 
 ### Phase 2: CLI Scaffolding
@@ -90,7 +90,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Project Foundation | 0/2 | Planned | - |
+| 1. Project Foundation | 1/2 | In progress | - |
 | 2. CLI Scaffolding | 0/0 | Not started | - |
 | 3. Agent Definitions + OpenCode Integration | 0/0 | Not started | - |
 | 4. Agent Quality + Modeling Workflows | 0/0 | Not started | - |
