@@ -93,47 +93,54 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ORCH-01 | TBD | Pending |
-| ORCH-02 | TBD | Pending |
-| ORCH-03 | TBD | Pending |
-| ORCH-04 | TBD | Pending |
-| ORCH-05 | TBD | Pending |
-| ORCH-06 | TBD | Pending |
-| ORCH-07 | TBD | Pending |
-| ORCH-08 | TBD | Pending |
-| AGNT-01 | TBD | Pending |
-| AGNT-02 | TBD | Pending |
-| AGNT-03 | TBD | Pending |
-| AGNT-04 | TBD | Pending |
-| AGNT-05 | TBD | Pending |
-| AGNT-06 | TBD | Pending |
-| MODL-01 | TBD | Pending |
-| MODL-02 | TBD | Pending |
-| MODL-03 | TBD | Pending |
-| MODL-04 | TBD | Pending |
-| MODL-05 | TBD | Pending |
-| MODL-06 | TBD | Pending |
-| MODL-07 | TBD | Pending |
-| SPEC-01 | TBD | Pending |
-| SPEC-02 | TBD | Pending |
-| SPEC-03 | TBD | Pending |
-| SPEC-04 | TBD | Pending |
-| SPEC-05 | TBD | Pending |
-| GENR-01 | TBD | Pending |
-| GENR-02 | TBD | Pending |
-| GENR-03 | TBD | Pending |
-| GENR-04 | TBD | Pending |
-| GENR-05 | TBD | Pending |
-| GENR-06 | TBD | Pending |
-| GENR-07 | TBD | Pending |
-| DEMO-01 | TBD | Pending |
-| DEMO-02 | TBD | Pending |
+| ORCH-01 | Phase 1 | Pending |
+| ORCH-02 | Phase 1 | Pending |
+| ORCH-03 | Phase 1 | Pending |
+| ORCH-04 | Phase 1 | Pending |
+| ORCH-05 | Phase 1 | Pending |
+| ORCH-06 | Phase 1 | Pending |
+| ORCH-07 | Phase 1 | Pending |
+| ORCH-08 | Phase 1 | Pending |
+| AGNT-01 | Phase 1 | Pending |
+| AGNT-02 | Phase 1 | Pending |
+| AGNT-03 | Phase 1 | Pending |
+| AGNT-04 | Phase 1 | Pending |
+| AGNT-05 | Phase 1 | Pending |
+| AGNT-06 | Phase 1 | Pending |
+| MODL-01 | Phase 2 | Pending |
+| MODL-02 | Phase 2 | Pending |
+| MODL-03 | Phase 2 | Pending |
+| MODL-04 | Phase 3 | Pending |
+| MODL-05 | Phase 3 | Pending |
+| MODL-06 | Phase 3 | Pending |
+| MODL-07 | Phase 3 | Pending |
+| SPEC-01 | Phase 2 | Pending |
+| SPEC-02 | Phase 2 | Pending |
+| SPEC-03 | Phase 2 | Pending |
+| SPEC-04 | Phase 2 | Pending |
+| SPEC-05 | Phase 2 | Pending |
+| GENR-01 | Phase 4 | Pending |
+| GENR-02 | Phase 4 | Pending |
+| GENR-03 | Phase 4 | Pending |
+| GENR-04 | Phase 4 | Pending |
+| GENR-05 | Phase 4 | Pending |
+| GENR-06 | Phase 4 | Pending |
+| GENR-07 | Phase 4 | Pending |
+| DEMO-01 | Phase 5 | Pending |
+| DEMO-02 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 35 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 35
+- Mapped to phases: 35 (100% coverage)
+- Unmapped: 0
+
+**Phase Distribution:**
+- Phase 1 (Foundation): 14 requirements
+- Phase 2 (CLP Workflow): 8 requirements
+- Phase 3 (Anchor Modeling): 5 requirements
+- Phase 4 (Code Generation): 7 requirements
+- Phase 5 (Validation): 1 requirement
 
 ---
 *Requirements defined: 2026-02-07*
-*Last updated: 2026-02-07 after initial definition*
+*Last updated: 2026-02-07 after roadmap creation*
