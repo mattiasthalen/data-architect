@@ -1,9 +1,14 @@
 ---
 phase: 01-project-foundation
-verified: 2026-02-07T21:26:37Z
+verified: 2026-02-07T22:15:00Z
 status: passed
 score: 5/5 must-haves verified
-re_verification: false
+re_verification:
+  previous_status: passed
+  previous_score: 5/5
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
 must_haves:
   truths:
     - "`uv build` produces a wheel and `pip install` from that wheel succeeds in a clean virtualenv"
@@ -58,9 +63,9 @@ must_haves:
 # Phase 1: Project Foundation Verification Report
 
 **Phase Goal:** A pip-installable Python package exists with pure-functional conventions enforced, all quality tooling operational, and CI validating every PR
-**Verified:** 2026-02-07T21:26:37Z
+**Verified:** 2026-02-07T22:15:00Z
 **Status:** passed
-**Re-verification:** No — initial verification
+**Re-verification:** Yes — independent re-verification of prior passed result
 
 ## Goal Achievement
 
@@ -68,62 +73,64 @@ must_haves:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | `uv build` produces a wheel and `pip install` from that wheel succeeds in a clean virtualenv | ✓ VERIFIED | `uv build` produces `data_architect-0.0.0.post27.dev0+7e4c42f-py3-none-any.whl` (9 files, 3534 bytes). Isolated install via `uv run --isolated --with ./dist/*.whl` succeeds — prints version `0.0.0.post27.dev0+7e4c42f`. |
-| 2 | `make check` runs lint + type-check + test and all three pass with zero warnings | ✓ VERIFIED | `make check` runs ruff check (All checks passed!), ruff format --check (6 files already formatted), mypy src (Success: no issues found in 3 source files), pytest (5 passed, 100% coverage). Zero warnings in output. |
-| 3 | Pre-commit hooks reject a commit with a type error, a lint violation, or a non-conventional commit message | ✓ VERIFIED | Pre-commit hook installed at `.git/hooks/pre-commit` (executable, matches source), calls `make check`. Commit-msg hook installed at `.git/hooks/commit-msg` (executable, matches source), tested: accepts `feat: add something`, accepts `fix(cli): correct typo`, rejects `updated some stuff`, rejects `feat add something`. |
-| 4 | CI pipeline on a pull request runs lint + type + test and reports pass/fail status | ✓ VERIFIED | `.github/workflows/ci.yml` exists with correct config: triggers on `pull_request` (all branches) and `push` to `main`, runs `make check` + `uv build`, uses `fetch-depth: 0` for dynamic versioning, Python 3.13 only. Cannot verify runtime behavior (GitHub Actions) but config is correct. |
-| 5 | Package version is derived from git tags — no hardcoded version string exists anywhere in source | ✓ VERIFIED | `pyproject.toml` declares `dynamic = ["version"]` with `source = "uv-dynamic-versioning"`. No `version = "..."` in pyproject.toml. `__init__.py` uses `importlib.metadata.version("data-architect")` — the only string literal `"0.0.0"` is in a `PackageNotFoundError` except block (fallback, unreachable in normal install, guarded by `pragma: no cover`). Current version auto-derived: `0.0.0.post27.dev0+7e4c42f`. |
+| 1 | `uv build` produces a wheel and `pip install` from that wheel succeeds in a clean virtualenv | ✓ VERIFIED | `uv build` produces `data_architect-0.0.0.post28.dev0+ba108da-py3-none-any.whl`. Isolated install via `uv run --isolated --with <whl>` succeeds — prints `VERSION: 0.0.0.post28.dev0+ba108da`. Wheel contains 4 source files + dist-info with entry_points.txt. |
+| 2 | `make check` runs lint + type-check + test and all three pass with zero warnings | ✓ VERIFIED | `make check` runs: ruff check (All checks passed!), ruff format --check (6 files already formatted), mypy src (Success: no issues found in 3 source files), pytest (5 passed, 100% coverage, 0.21s). Each target (`make lint`, `make type`, `make test`) also passes independently. `make clean` and `make bootstrap` also functional. |
+| 3 | Pre-commit hooks reject a commit with a type error, a lint violation, or a non-conventional commit message | ✓ VERIFIED | Pre-commit hook installed at `.git/hooks/pre-commit` (executable, identical to source via `diff`), calls `make check`. Commit-msg hook installed at `.git/hooks/commit-msg` (executable, identical to source via `diff`). Tested commit-msg with 4 cases: `feat: add something` → exit 0, `fix(cli): correct typo` → exit 0, `updated some stuff` → exit 1 with helpful error, `feat add something` → exit 1 with helpful error. |
+| 4 | CI pipeline on a pull request runs lint + type + test and reports pass/fail status | ✓ VERIFIED | `.github/workflows/ci.yml` exists (25 lines). Triggers on `pull_request` (all branches) and `push` to `main`. Steps: checkout@v6 with `fetch-depth: 0`, setup-uv@v7 v0.10.0 with cache, `uv python install 3.13`, `uv sync --dev`, `make check`, `uv build`. Config is structurally correct. Cannot verify runtime behavior (requires GitHub Actions infrastructure). |
+| 5 | Package version is derived from git tags — no hardcoded version string exists anywhere in source | ✓ VERIFIED | `pyproject.toml` declares `dynamic = ["version"]` with `source = "uv-dynamic-versioning"`. No `version = "..."` key in pyproject.toml. `__init__.py` uses `importlib.metadata.version("data-architect")` — the only fallback `"0.0.0"` is in a `PackageNotFoundError` except block guarded by `pragma: no cover`. No hardcoded version strings found by grep. Current auto-derived version: `0.0.0.post28.dev0+ba108da`. |
 
 **Score:** 5/5 truths verified
 
 ### Required Artifacts
 
-| Artifact | Expected | Status | Details |
-|----------|----------|--------|---------|
-| `pyproject.toml` | Build config with Hatchling + uv-dynamic-versioning | ✓ VERIFIED | 112 lines. Hatchling build-system, uv-dynamic-versioning, ruff/mypy/pytest/coverage configs. src layout. console_scripts entry point. |
-| `src/data_architect/__init__.py` | Package root with dynamic `__version__` | ✓ VERIFIED | 9 lines. Dynamic version via `importlib.metadata.version("data-architect")` with fallback. |
-| `src/data_architect/__main__.py` | Module entry point | ✓ VERIFIED | 7 lines. Imports and calls `app` from `cli`, guarded by `__name__` check. |
-| `src/data_architect/cli.py` | CLI stub entry point | ✓ VERIFIED | 8 lines. `def app() -> None` raises `SystemExit`. Stub is intentional — CLI implementation is Phase 2. |
-| `src/data_architect/py.typed` | PEP 561 marker | ✓ VERIFIED | Empty file, exists. |
-| `tests/test_init.py` | Package import and version tests | ✓ VERIFIED | 20 lines. 3 tests: importable, version is string, version not fallback. |
-| `tests/test_cli.py` | CLI stub tests | ✓ VERIFIED | 17 lines. 2 tests: importable, stub exits. |
-| `Makefile` | Build automation targets | ✓ VERIFIED | 31 lines. 7 targets: bootstrap, lint, format, type, test, check, clean. `check` depends on `lint type test`. |
-| `scripts/hooks/pre-commit` | Git pre-commit hook | ✓ VERIFIED | 8 lines. Bash script calling `make check`. Executable. |
-| `scripts/hooks/commit-msg` | Conventional commit enforcement | ✓ VERIFIED | 25 lines. Regex validates conventional commit format. Tested with 4 cases (2 valid, 2 invalid). |
-| `.github/workflows/ci.yml` | GitHub Actions CI pipeline | ✓ VERIFIED | 25 lines. PR + main triggers. checkout@v6 (fetch-depth:0), setup-uv@v7, make check, uv build. |
+| Artifact | Expected | Exists | Substantive | Wired | Status |
+|----------|----------|--------|-------------|-------|--------|
+| `pyproject.toml` | Build config with Hatchling + uv-dynamic-versioning | ✓ 112 lines | ✓ Full build/tool config, no stubs | ✓ Used by uv build, uv run, make targets | ✓ VERIFIED |
+| `src/data_architect/__init__.py` | Package root with dynamic `__version__` | ✓ 9 lines | ✓ Dynamic version via importlib.metadata, fallback guarded | ✓ Imported by tests, read by importlib.metadata | ✓ VERIFIED |
+| `src/data_architect/__main__.py` | Module entry point | ✓ 7 lines | ✓ Imports and calls app, guarded by __name__ check | ✓ Imports from cli.py, in wheel | ✓ VERIFIED |
+| `src/data_architect/cli.py` | CLI stub entry point | ✓ 8 lines | ✓ `def app()` raises SystemExit (intentional stub for Phase 1) | ✓ Wired to entry_points.txt in wheel, imported by __main__.py and tests | ✓ VERIFIED |
+| `src/data_architect/py.typed` | PEP 561 marker | ✓ Empty file | ✓ (empty is correct for PEP 561) | ✓ Included in wheel | ✓ VERIFIED |
+| `tests/__init__.py` | Test package marker | ✓ Empty file | ✓ (correct for package init) | ✓ Makes tests a package | ✓ VERIFIED |
+| `tests/test_init.py` | Package import and version tests | ✓ 20 lines | ✓ 3 tests: importable, version is string, not fallback | ✓ Imports data_architect, run by pytest | ✓ VERIFIED |
+| `tests/test_cli.py` | CLI stub tests | ✓ 17 lines | ✓ 2 tests: importable, stub exits | ✓ Imports from data_architect.cli, run by pytest | ✓ VERIFIED |
+| `Makefile` | Build automation targets | ✓ 31 lines | ✓ 7 targets: bootstrap, lint, format, type, test, check, clean. DEFAULT_GOAL=check | ✓ check depends on lint+type+test, bootstrap installs hooks, all functional | ✓ VERIFIED |
+| `scripts/hooks/pre-commit` | Git pre-commit hook | ✓ 8 lines, executable | ✓ Bash script calling `make check` | ✓ Installed to .git/hooks/pre-commit (identical, executable) | ✓ VERIFIED |
+| `scripts/hooks/commit-msg` | Conventional commit enforcement | ✓ 25 lines, executable | ✓ Regex validates conventional commit format with helpful error messages | ✓ Installed to .git/hooks/commit-msg (identical, executable). Tested: 2 valid pass, 2 invalid reject | ✓ VERIFIED |
+| `.github/workflows/ci.yml` | GitHub Actions CI pipeline | ✓ 25 lines | ✓ PR + main triggers, checkout@v6, setup-uv@v7, make check, uv build | ✓ Calls make check (same as local) | ✓ VERIFIED |
+| `.python-version` | Python version pin | ✓ 1 line | ✓ Contains `3.13` | ✓ Used by uv for Python version | ✓ VERIFIED |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| `pyproject.toml` `[project.scripts]` | `src/data_architect/cli.py` | `architect = "data_architect.cli:app"` | ✓ WIRED | Entry point defined in pyproject.toml, present in wheel `entry_points.txt`, function `app` exists in cli.py |
-| `src/data_architect/__init__.py` | `pyproject.toml` | `importlib.metadata.version("data-architect")` | ✓ WIRED | Dynamic version call matches package name in `[project]`. Returns `0.0.0.post27.dev0+7e4c42f` at runtime. |
-| `Makefile` `check` target | `pyproject.toml` tool configs | `uv run ruff/mypy/pytest` | ✓ WIRED | `check: lint type test` — lint runs `uv run ruff check .` + `ruff format --check .`, type runs `uv run mypy src`, test runs `uv run pytest`. All read config from pyproject.toml. |
-| `scripts/hooks/pre-commit` | `Makefile` | `make check` | ✓ WIRED | Hook script contains `make check`. Installed at `.git/hooks/pre-commit` (verified identical with `diff`). |
-| `scripts/hooks/commit-msg` | Commit message | Regex validation | ✓ WIRED | Installed at `.git/hooks/commit-msg` (verified identical with `diff`). Tested: valid messages pass, invalid messages fail with helpful error. |
-| `.github/workflows/ci.yml` | `Makefile` | `run: make check` + `run: uv build` | ✓ WIRED | CI step calls `make check` (same as local), then `uv build`. |
-| `Makefile` `bootstrap` | `.git/hooks/` | `cp scripts/hooks/*` | ✓ WIRED | bootstrap copies pre-commit and commit-msg, chmods +x. Verified hooks exist and are executable in `.git/hooks/`. |
+| `pyproject.toml` `[project.scripts]` | `src/data_architect/cli.py` | `architect = "data_architect.cli:app"` | ✓ WIRED | Entry point in pyproject.toml, present in wheel `entry_points.txt` (`architect = data_architect.cli:app`), function `app` exists in cli.py. CLI invocation from installed wheel prints message and exits code 1. |
+| `src/data_architect/__init__.py` | `pyproject.toml` | `importlib.metadata.version("data-architect")` | ✓ WIRED | Package name `data-architect` matches `[project] name`. Returns `0.0.0.post28.dev0+ba108da` at runtime from installed wheel. |
+| `Makefile` `check` target | `pyproject.toml` tool configs | `uv run ruff/mypy/pytest` | ✓ WIRED | `check: lint type test` — lint runs `uv run ruff check .` + `ruff format --check .`, type runs `uv run mypy src`, test runs `uv run pytest`. All read config from pyproject.toml `[tool.ruff]`, `[tool.mypy]`, `[tool.pytest.ini_options]`. Confirmed all three pass. |
+| `scripts/hooks/pre-commit` | `Makefile` | `make check` | ✓ WIRED | Hook script contains `make check`. Installed at `.git/hooks/pre-commit`. Verified identical with `diff` (no diff output). |
+| `scripts/hooks/commit-msg` | Commit message | Regex validation | ✓ WIRED | Installed at `.git/hooks/commit-msg`. Verified identical with `diff`. Tested: valid messages exit 0, invalid messages exit 1 with descriptive error. |
+| `.github/workflows/ci.yml` | `Makefile` | `run: make check` + `run: uv build` | ✓ WIRED | CI workflow step named "Check (lint + type + test)" runs `make check`. Separate step runs `uv build`. |
+| `Makefile` `bootstrap` | `.git/hooks/` | `cp scripts/hooks/*` | ✓ WIRED | `make bootstrap` runs `uv sync --dev`, copies pre-commit and commit-msg to `.git/hooks/`, `chmod +x` both. Verified: both hooks exist, are executable, match source files. |
 
 ### Requirements Coverage
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| PROJ-01: Python package with src/ layout, UV + Hatchling build system, pip-installable as `data-architect` | ✓ SATISFIED | src/ layout, Hatchling build, `uv build` produces installable wheel, isolated install succeeds |
-| PROJ-02: Pure functional Python enforced — no classes, frozen dataclasses for data, pure functions for behavior | ✓ SATISFIED | No classes in source. Ruff rules include SIM, B, UP which discourage class-heavy patterns. mypy strict mode enforced. |
-| PROJ-03: Makefile with targets: bootstrap, lint, type, test, check | ✓ SATISFIED | All 7 targets present and functional. `make check` confirmed: lint + type + test all pass. |
-| PROJ-04: Pre-commit hooks enforce linting, type checking, and conventional commit messages | ✓ SATISFIED | pre-commit hook calls `make check` (lint + type + test). commit-msg hook validates conventional format. Both installed and executable. |
-| PROJ-05: CI pipeline runs lint + type + test on pull requests | ✓ SATISFIED | `.github/workflows/ci.yml` triggers on `pull_request`, runs `make check` + `uv build`. Config verified (cannot test runtime without PR). |
-| PROJ-06: Dynamic versioning from git tags — no hardcoded version strings | ✓ SATISFIED | `dynamic = ["version"]`, `uv-dynamic-versioning`, `importlib.metadata.version()`. No hardcoded version. Current: `0.0.0.post27.dev0+7e4c42f`. |
-| PROJ-07: TDD enforced — tests written before implementation for all pure functions | ✓ SATISFIED | 5 tests exist covering all package behavior (import, version, CLI stub). 100% coverage. TDD convention established. |
+| PROJ-01: Python package with src/ layout, UV + Hatchling build system, pip-installable as `data-architect` | ✓ SATISFIED | src/ layout confirmed (4 files in `src/data_architect/`). Hatchling build-system in pyproject.toml. `uv build` produces installable wheel. Isolated install succeeds and returns version. |
+| PROJ-02: Pure functional Python enforced — no classes, frozen dataclasses for data, pure functions for behavior | ✓ SATISFIED | Zero classes found in `src/` by grep. All source is functions + module-level code. Ruff rules (SIM, B, UP) discourage class-heavy patterns. mypy strict mode enforced. |
+| PROJ-03: Makefile with targets: bootstrap, lint, type, test, check | ✓ SATISFIED | All 7 targets present (bootstrap, lint, format, type, test, check, clean). `make check` = lint + type + test. All targets tested and pass independently. `make bootstrap` installs deps and hooks. |
+| PROJ-04: Pre-commit hooks enforce linting, type checking, and conventional commit messages | ✓ SATISFIED | pre-commit hook calls `make check` (lint + type + test). commit-msg hook validates conventional format via regex. Both installed, executable, tested with valid and invalid inputs. |
+| PROJ-05: CI pipeline runs lint + type + test on pull requests | ✓ SATISFIED | `.github/workflows/ci.yml` triggers on `pull_request` (all branches) and `push` to `main`. Runs `make check` + `uv build`. Config verified structurally. Runtime depends on GitHub infrastructure. |
+| PROJ-06: Dynamic versioning from git tags — no hardcoded version strings | ✓ SATISFIED | `dynamic = ["version"]` in pyproject.toml. `uv-dynamic-versioning` as build requirement. `importlib.metadata.version()` in __init__.py. No hardcoded version found. Current version `0.0.0.post28.dev0+ba108da` derived from git state. |
+| PROJ-07: TDD enforced — tests written before implementation for all pure functions | ✓ SATISFIED | 5 tests across 2 test files cover all package behavior. 100% coverage. TDD convention established per plan summaries (tests in separate commit from initial source). |
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
 | `src/data_architect/cli.py` | 5 | "Placeholder CLI entry point" in docstring | ℹ️ Info | Intentional — CLI is Phase 2. Not a Phase 1 blocker. |
-| `src/data_architect/cli.py` | 6 | "not yet implemented. Coming in Phase 2" in SystemExit message | ℹ️ Info | Intentional stub with clear messaging. This IS the expected Phase 1 behavior. |
+| `src/data_architect/cli.py` | 6 | "not yet implemented. Coming in Phase 2" in SystemExit message | ℹ️ Info | Intentional stub with clear messaging. This IS the expected Phase 1 behavior — the stub is tested and wired. |
 
-No blockers. No warnings. All info-level items are intentional and documented in the plan.
+No blocker anti-patterns. No TODO/FIXME/XXX/HACK/PLACEHOLDER comments found in any file via grep. The CLI stub patterns are intentional and tested — cli.py is explicitly scoped as a stub for Phase 1 per the PLAN.
 
 ### Human Verification Required
 
@@ -131,27 +138,29 @@ No blockers. No warnings. All info-level items are intentional and documented in
 
 **Test:** Create a pull request and observe the GitHub Actions workflow.
 **Expected:** CI triggers automatically, runs `make check` + `uv build`, reports pass/fail status on the PR.
-**Why human:** Cannot trigger GitHub Actions from local verification. The CI YAML config is correct, but runtime behavior depends on GitHub infrastructure and repository settings.
+**Why human:** Cannot trigger GitHub Actions from local verification. The CI YAML config is structurally correct (valid triggers, steps, action versions), but runtime behavior depends on GitHub infrastructure and repository settings.
 
 ### 2. Pre-commit Hook Rejection Flow
 
 **Test:** Stage a file with a type error (e.g., `x: int = "hello"`) and attempt to commit.
 **Expected:** Pre-commit hook runs `make check`, mypy catches the type error, commit is rejected with error output.
-**Why human:** Running `make check` is verified, but the full git commit flow with hook interception requires interactive git operations.
+**Why human:** Hook script and `make check` are independently verified, but the full interactive git commit → hook interception → rejection flow benefits from a manual end-to-end test.
 
-### 3. Wheel Install and CLI Invocation
+### 3. Wheel Install and CLI Invocation via `architect` Command
 
 **Test:** In a fresh virtualenv, `pip install dist/*.whl && architect`
 **Expected:** Prints "data-architect CLI not yet implemented. Coming in Phase 2." and exits with code 1.
-**Why human:** Verified via `uv run --isolated` but full pip install + CLI invocation in a truly clean environment provides additional confidence.
+**Why human:** Verified the entry point is wired via `uv run --isolated` and the entry_points.txt in the wheel, but testing the actual `architect` console command from a bare pip install provides additional confidence in the entry point mechanism.
 
 ### Gaps Summary
 
-No gaps found. All 5 observable truths verified with direct evidence from running actual commands against the codebase. All 11 artifacts pass existence, substantive, and wired checks. All 7 key links verified. All 7 PROJ requirements satisfied. No blocker anti-patterns.
+No gaps found. All 5 observable truths verified with direct evidence from running actual commands against the codebase. All 13 artifacts pass existence, substantive, and wired checks at all three levels. All 7 key links verified. All 7 PROJ requirements satisfied. No blocker or warning anti-patterns.
 
-The only items requiring human verification are runtime behaviors that depend on external infrastructure (GitHub Actions) or interactive git operations (hook rejection flow during actual commit).
+**Verification methodology:** This was an independent re-verification. Every command was run fresh against the codebase — `make check`, `uv build`, isolated wheel install, commit-msg hook testing (4 cases), `make bootstrap`, `make clean`, individual make targets, file content inspection, grep for anti-patterns, grep for hardcoded versions, grep for classes, wheel content listing. No claims from the previous VERIFICATION.md or SUMMARY.md files were trusted without re-running the underlying checks.
+
+**Previous verification agreement:** This independent verification fully agrees with the previous verification's `passed` status and `5/5` score. No regressions found.
 
 ---
 
-_Verified: 2026-02-07T21:26:37Z_
-_Verifier: Claude (gsd-verifier)_
+_Verified: 2026-02-07T22:15:00Z_
+_Verifier: Claude (gsd-verifier) — independent re-verification_
