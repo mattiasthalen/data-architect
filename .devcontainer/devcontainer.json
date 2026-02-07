@@ -1,8 +1,9 @@
 {
-  "name": "warehouse-architect",
+  "name": "data-architect",
   "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
   "features": {
     "ghcr.io/devcontainer-community/devcontainer-features/astral.sh-uv:1": {},
+    "ghcr.io/devcontainers-extra/features/opencode:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/node:1": {},
     "ghcr.io/stu-bell/devcontainer-features/claude-code:0": {}
