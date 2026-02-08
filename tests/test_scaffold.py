@@ -231,3 +231,27 @@ def test_data_architect_has_debate_protocol():
     assert "Convergence" in da_md, "Data Architect missing Convergence section"
     assert "ESCALATE" in da_md, "Data Architect missing ESCALATE directive"
     assert "5 rounds" in da_md, "Data Architect missing 5 rounds iteration limit"
+
+
+def test_system_analyst_has_source_schema_protocol():
+    """System Analyst has source schema reading protocols for Swagger, OData, ERD."""
+    sa_md = TEMPLATES.get(".opencode/agents/system-analyst.md", "")
+    assert "Source Schema Reading" in sa_md, "Missing Source Schema Reading"
+    assert "Swagger" in sa_md, "System Analyst missing Swagger protocol"
+    assert "OData" in sa_md, "System Analyst missing OData protocol"
+    assert "ERD" in sa_md, "System Analyst missing ERD protocol"
+
+
+def test_business_analyst_has_evidence_templates():
+    """Business Analyst has business question evidence templates."""
+    ba_md = TEMPLATES.get(".opencode/agents/business-analyst.md", "")
+    assert "Business Question Evidence" in ba_md, "Missing evidence section"
+    assert "business needs to answer" in ba_md, "Missing evidence template"
+
+
+def test_analysts_have_burden_of_proof():
+    """Both System Analyst and Business Analyst have burden-of-proof rules."""
+    sa_md = TEMPLATES.get(".opencode/agents/system-analyst.md", "")
+    ba_md = TEMPLATES.get(".opencode/agents/business-analyst.md", "")
+    assert "burden" in sa_md.lower(), "System Analyst missing burden-of-proof"
+    assert "burden" in ba_md.lower(), "Business Analyst missing burden-of-proof"
