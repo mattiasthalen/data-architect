@@ -194,3 +194,23 @@ def test_no_todo_stubs_remain():
     """No TEMPLATES contain TODO placeholders from earlier phases."""
     for path, content in TEMPLATES.items():
         assert "<!-- TODO:" not in content, f"{path} contains TODO stub"
+
+
+def test_agents_md_has_decision_trees():
+    """AGENTS.md template contains decision tree sections."""
+    agents_md = TEMPLATES.get("AGENTS.md", "")
+    assert "Decision Tree" in agents_md, "AGENTS.md missing Decision Tree"
+    assert "Identity Check" in agents_md, "AGENTS.md missing Identity Check"
+    assert "Historization Decision" in agents_md, (
+        "AGENTS.md missing Historization Decision"
+    )
+    assert "Tie vs Nexus" in agents_md, "AGENTS.md missing Tie vs Nexus"
+
+
+def test_agents_md_has_historization_default():
+    """AGENTS.md template contains default historization guidance."""
+    agents_md = TEMPLATES.get("AGENTS.md", "")
+    # Check that guidance mentions defaulting to historized: true
+    assert "default" in agents_md.lower(), "AGENTS.md missing default guidance"
+    assert "historized" in agents_md, "AGENTS.md missing historized keyword"
+    assert "historized: true" in agents_md, "AGENTS.md missing 'historized: true'"
