@@ -286,3 +286,33 @@ def test_analytics_engineer_has_dar_mapping():
     ae_md = TEMPLATES.get(".opencode/agents/analytics-engineer.md", "")
     assert "DAB to DAR" in ae_md, "Missing DAB to DAR section"
     assert "bridge table" in ae_md, "Missing bridge table reference"
+
+
+def test_da_start_has_source_discovery():
+    """da-start skill contains source document discovery protocol."""
+    da_start = TEMPLATES.get(".opencode/skills/da-start/SKILL.md", "")
+    assert "Source Document Discovery" in da_start, "Missing source discovery section"
+    assert "Swagger" in da_start or "swagger" in da_start, "Missing Swagger protocol"
+    assert "business question" in da_start.lower(), (
+        "Missing business question gathering"
+    )
+
+
+def test_da_review_has_yaml_validation():
+    """da-review skill contains YAML structure validation."""
+    da_review = TEMPLATES.get(".opencode/skills/da-review/SKILL.md", "")
+    assert "Validate YAML" in da_review or "YAML structure" in da_review, (
+        "Missing YAML validation step"
+    )
+    assert "naming conventions" in da_review or "naming convention" in da_review, (
+        "Missing naming convention validation"
+    )
+
+
+def test_da_export_has_methodology_compliance():
+    """da-export skill contains methodology compliance validation."""
+    da_export = TEMPLATES.get(".opencode/skills/da-export/SKILL.md", "")
+    assert "methodology compliance" in da_export or "naming" in da_export, (
+        "Missing methodology compliance validation"
+    )
+    assert "veteran-reviewer" in da_export, "Missing veteran-reviewer gate"
