@@ -5,8 +5,8 @@ from data_architect.templates import TEMPLATES
 
 
 def test_manifest_has_expected_file_count():
-    """TEMPLATES has exactly 11 entries."""
-    assert len(TEMPLATES) == 11
+    """TEMPLATES has exactly 14 entries."""
+    assert len(TEMPLATES) == 14
 
 
 def test_all_agent_files_have_yaml_frontmatter():
@@ -110,6 +110,10 @@ def test_scaffold_creates_subdirectories(tmp_path):
     scaffold(tmp_path)
     assert (tmp_path / ".opencode" / "agents").is_dir()
     assert (tmp_path / ".opencode" / "skills" / "da-start").is_dir()
+    assert (tmp_path / ".opencode" / "skills" / "da-review").is_dir()
+    assert (tmp_path / ".opencode" / "skills" / "da-status").is_dir()
+    assert (tmp_path / ".opencode" / "skills" / "da-export").is_dir()
+    assert (tmp_path / ".data-architect" / "specs" / "examples").is_dir()
 
 
 def test_scaffold_result_types(tmp_path):
@@ -121,3 +125,72 @@ def test_scaffold_result_types(tmp_path):
         assert isinstance(result.action, ScaffoldAction)
         assert isinstance(result.path, str)
         assert isinstance(result.reason, str)
+
+
+def test_all_skill_files_have_yaml_frontmatter():
+    """Each skill SKILL.md file has complete YAML frontmatter."""
+    skill_files = [p for p in TEMPLATES if "/skills/" in p]
+    assert len(skill_files) == 4
+    for path in skill_files:
+        content = TEMPLATES[path]
+        assert content.startswith("---"), f"{path} missing frontmatter opening"
+        # Check for key frontmatter fields
+        assert "name:" in content, f"{path} missing name field"
+        assert "description:" in content, f"{path} missing description field"
+        assert "agent: data-architect" in content, f"{path} missing agent field"
+
+
+def test_agents_have_no_model_field():
+    """Agent files should not specify model field in frontmatter."""
+    agent_files = [p for p in TEMPLATES if ".opencode/agents/" in p]
+    for path in agent_files:
+        content = TEMPLATES[path]
+        # Extract frontmatter (between first --- and second ---)
+        lines = content.split("\n")
+        if lines[0] == "---":
+            frontmatter_lines = []
+            for i in range(1, len(lines)):
+                if lines[i] == "---":
+                    break
+                frontmatter_lines.append(lines[i])
+            frontmatter = "\n".join(frontmatter_lines)
+            assert "model:" not in frontmatter, f"{path} should not specify model"
+
+
+def test_agents_have_cross_references():
+    """Agent prompts reference other agents via @mentions."""
+    agent_files = [p for p in TEMPLATES if ".opencode/agents/" in p]
+    for path in agent_files:
+        content = TEMPLATES[path]
+        # Extract body (after second ---)
+        parts = content.split("---", 2)
+        if len(parts) >= 3:
+            body = parts[2]
+            # Check if body contains at least one @ mention
+            # (agents should reference each other for coordination)
+            has_mention = "@" in body and any(
+                agent in body
+                for agent in [
+                    "data-architect",
+                    "business-analyst",
+                    "system-analyst",
+                    "data-engineer",
+                    "analytics-engineer",
+                    "veteran-reviewer",
+                ]
+            )
+            assert has_mention, f"{path} should reference other agents via @mentions"
+
+
+def test_agents_md_has_naming_conventions():
+    """AGENTS.md includes naming convention examples."""
+    agents_md = TEMPLATES.get("AGENTS.md", "")
+    assert "anchor__" in agents_md, "AGENTS.md missing anchor__ examples"
+    assert "tie__" in agents_md, "AGENTS.md missing tie__ examples"
+    assert "knot__" in agents_md, "AGENTS.md missing knot__ examples"
+
+
+def test_no_todo_stubs_remain():
+    """No TEMPLATES contain TODO placeholders from earlier phases."""
+    for path, content in TEMPLATES.items():
+        assert "<!-- TODO:" not in content, f"{path} contains TODO stub"

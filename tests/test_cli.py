@@ -9,7 +9,7 @@ runner = CliRunner()
 
 
 def test_init_creates_files_in_empty_dir(tmp_path):
-    """architect init in empty dir creates all 11 files with checkmark output."""
+    """architect init in empty dir creates all 14 files with checkmark output."""
     result = runner.invoke(app, ["init", "--dir", str(tmp_path)])
     assert result.exit_code == 0
     assert "\u2713" in result.output
@@ -17,15 +17,15 @@ def test_init_creates_files_in_empty_dir(tmp_path):
         assert (tmp_path / relative_path).exists(), f"{relative_path} not created"
 
 
-def test_init_creates_all_nine_files(tmp_path):
-    """Exactly 11 files are created on disk."""
+def test_init_creates_all_files(tmp_path):
+    """Exactly 14 files are created on disk."""
     runner.invoke(app, ["init", "--dir", str(tmp_path)])
     created_files = []
     for relative_path in TEMPLATES:
         full = tmp_path / relative_path
         if full.exists():
             created_files.append(relative_path)
-    assert len(created_files) == 11
+    assert len(created_files) == 14
 
 
 def test_init_default_dir_is_cwd(tmp_path, monkeypatch):
@@ -107,7 +107,7 @@ def test_init_prints_summary(tmp_path):
     """Output contains a summary line with file count."""
     result = runner.invoke(app, ["init", "--dir", str(tmp_path)])
     assert result.exit_code == 0
-    assert "11 created" in result.output
+    assert "14 created" in result.output
 
 
 def test_init_prints_all_paths(tmp_path):
@@ -132,14 +132,14 @@ def test_init_skips_summary_line(tmp_path):
     runner.invoke(app, ["init", "--dir", str(tmp_path)])
     result = runner.invoke(app, ["init", "--dir", str(tmp_path)])
     assert result.exit_code == 0
-    assert "11 skipped" in result.output
+    assert "14 skipped" in result.output
 
 
 def test_init_dry_run_file_count(tmp_path):
     """Dry run summary shows correct file count."""
     result = runner.invoke(app, ["init", "--dry-run", "--dir", str(tmp_path)])
     assert result.exit_code == 0
-    assert "11 files would be created" in result.output
+    assert "14 files would be created" in result.output
 
 
 def test_init_file_content_matches_templates(tmp_path):
