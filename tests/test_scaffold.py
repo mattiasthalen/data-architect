@@ -316,3 +316,20 @@ def test_da_export_has_methodology_compliance():
         "Missing methodology compliance validation"
     )
     assert "veteran-reviewer" in da_export, "Missing veteran-reviewer gate"
+
+
+def test_anchor_example_has_methodology_reasoning():
+    """anchor-example.yaml contains methodology reasoning in comments."""
+    anchor_ex = TEMPLATES.get(".data-architect/specs/examples/anchor-example.yaml", "")
+    assert "immutable" in anchor_ex, "Missing immutable reasoning"
+    assert "historize" in anchor_ex, "Missing historization reasoning"
+    assert "anti-pattern" in anchor_ex, "Missing anti-pattern threshold warning"
+
+
+def test_domain_example_has_decision_tree_reasoning():
+    """domain-example.yaml contains decision tree and tie direction reasoning."""
+    domain_ex = TEMPLATES.get(".data-architect/specs/examples/domain-example.yaml", "")
+    assert "Decision Tree" in domain_ex or "independent identity" in domain_ex, (
+        "Missing Decision Tree reasoning"
+    )
+    assert "many-to-one" in domain_ex, "Missing many-to-one tie direction reasoning"
