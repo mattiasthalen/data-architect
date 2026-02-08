@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Project Foundation** - Pure-functional Python package with build system, CI, and TDD infrastructure
 - [x] **Phase 2: CLI Scaffolding** - `architect init` command with all flags, error handling, and file output
-- [ ] **Phase 3: Agent Definitions + OpenCode Integration** - All 6 agent files, AGENTS.md, opencode.json, and skills scaffolded correctly
+- [x] **Phase 3: Agent Definitions + OpenCode Integration** - All 6 agent files, AGENTS.md, opencode.json, and skills scaffolded correctly
 - [ ] **Phase 4: Agent Quality + Modeling Workflows** - Methodology-deep prompts, CLP debate protocol, and end-to-end modeling capability
 
 ## Phase Details
@@ -64,8 +64,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Shared context (AGENTS.md, opencode.json, spec schemas) and all 6 agent prompts
-- [ ] 03-02-PLAN.md — Skill definitions (/da:start, /da:review, /da:status, /da:export) and test alignment
+- [x] 03-01-PLAN.md — Shared context (AGENTS.md, opencode.json, spec schemas) and all 6 agent prompts
+- [x] 03-02-PLAN.md — Skill definitions (/da:start, /da:review, /da:status, /da:export) and test alignment
 
 ### Phase 4: Agent Quality + Modeling Workflows
 **Goal**: Agent prompts encode deep Anchor Modeling methodology and CLP debate protocol so that users can drive genuine multi-agent debate that produces methodology-compliant YAML specs
@@ -92,9 +92,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Project Foundation | 2/2 | Complete | 2026-02-07 |
 | 2. CLI Scaffolding | 2/2 | Complete | 2026-02-07 |
-| 3. Agent Definitions + OpenCode Integration | 0/2 | In Progress | - |
+| 3. Agent Definitions + OpenCode Integration | 2/2 | Complete | 2026-02-08 |
 | 4. Agent Quality + Modeling Workflows | 0/0 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-08 — Phase 3 planned*
+*Last updated: 2026-02-08 — Phase 3 complete*
