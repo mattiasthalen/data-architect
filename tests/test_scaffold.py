@@ -255,3 +255,34 @@ def test_analysts_have_burden_of_proof():
     ba_md = TEMPLATES.get(".opencode/agents/business-analyst.md", "")
     assert "burden" in sa_md.lower(), "System Analyst missing burden-of-proof"
     assert "burden" in ba_md.lower(), "Business Analyst missing burden-of-proof"
+
+
+def test_veteran_reviewer_has_detection_criteria():
+    """Veteran Reviewer has detection criteria for anti-patterns."""
+    vr_md = TEMPLATES.get(".opencode/agents/veteran-reviewer.md", "")
+    # Check for at least 5 occurrences of "detection criteria" (case-insensitive)
+    count = vr_md.lower().count("detection criteria")
+    assert count >= 5, f"Expected >= 5 'detection criteria', found {count}"
+
+
+def test_veteran_reviewer_has_fix_templates():
+    """Veteran Reviewer has fix templates for anti-patterns."""
+    vr_md = TEMPLATES.get(".opencode/agents/veteran-reviewer.md", "")
+    # Check for at least 3 occurrences of "fix template" (case-insensitive)
+    count = vr_md.lower().count("fix template")
+    assert count >= 3, f"Expected >= 3 'fix template', found {count}"
+
+
+def test_data_engineer_has_physical_patterns():
+    """Data Engineer has deepened Anchor Modeling physical patterns."""
+    de_md = TEMPLATES.get(".opencode/agents/data-engineer.md", "")
+    assert "Anchor Modeling Physical Patterns" in de_md, "Missing section"
+    assert "valid_from" in de_md, "Missing valid_from pattern"
+    assert "composite index" in de_md, "Missing composite index guidance"
+
+
+def test_analytics_engineer_has_dar_mapping():
+    """Analytics Engineer has DAB to DAR mapping checklist."""
+    ae_md = TEMPLATES.get(".opencode/agents/analytics-engineer.md", "")
+    assert "DAB to DAR" in ae_md, "Missing DAB to DAR section"
+    assert "bridge table" in ae_md, "Missing bridge table reference"
