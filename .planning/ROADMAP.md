@@ -61,11 +61,11 @@ Plans:
   3. After `architect init`, `opencode.json` is pre-configured with default agent, model assignments, and tool permissions so the team works without manual configuration
   4. After `architect init`, `.opencode/skills/da-*/SKILL.md` files exist and are invocable as `/da:*` commands in OpenCode
   5. After `architect init`, example YAML spec schemas exist so agents have a reference format for producing consistent output
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md — Shared context (AGENTS.md, opencode.json, spec schemas) and all 6 agent prompts
+- [ ] 03-02-PLAN.md — Skill definitions (/da:start, /da:review, /da:status, /da:export) and test alignment
 
 ### Phase 4: Agent Quality + Modeling Workflows
 **Goal**: Agent prompts encode deep Anchor Modeling methodology and CLP debate protocol so that users can drive genuine multi-agent debate that produces methodology-compliant YAML specs
@@ -92,9 +92,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Project Foundation | 2/2 | Complete | 2026-02-07 |
 | 2. CLI Scaffolding | 2/2 | Complete | 2026-02-07 |
-| 3. Agent Definitions + OpenCode Integration | 0/0 | Not started | - |
+| 3. Agent Definitions + OpenCode Integration | 0/2 | In Progress | - |
 | 4. Agent Quality + Modeling Workflows | 0/0 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-07 — Phase 2 complete*
+*Last updated: 2026-02-08 — Phase 3 planned*
