@@ -39,17 +39,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HOOK-01 | TBD | Pending |
-| HOOK-02 | TBD | Pending |
-| HOOK-03 | TBD | Pending |
-| HOOK-04 | TBD | Pending |
-| HOOK-05 | TBD | Pending |
+| HOOK-01 | Phase 5 | Pending |
+| HOOK-02 | Phase 5 | Pending |
+| HOOK-03 | Phase 5 | Pending |
+| HOOK-04 | Phase 5 | Pending |
+| HOOK-05 | Phase 5 | Pending |
 
 **Coverage:**
 - v0.2.0 requirements: 5 total
-- Mapped to phases: 0
-- Unmapped: 5
+- Mapped to phases: 5
+- Unmapped: 0
+
+**Coverage validation:** 5/5 requirements mapped to Phase 5 (100% coverage)
 
 ---
 *Requirements defined: 2026-02-08*
-*Last updated: 2026-02-08 after initial definition*
+*Last updated: 2026-02-08 — v0.2.0 Phase 5 traceability complete*
