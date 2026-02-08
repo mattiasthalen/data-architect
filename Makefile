@@ -7,11 +7,9 @@ help:  ## Show available targets
 .PHONY: bootstrap
 bootstrap:  ## Install deps + git hooks
 	uv sync --dev
-	@echo "Installing git hooks..."
-	@cp scripts/hooks/pre-commit .git/hooks/pre-commit
-	@cp scripts/hooks/commit-msg .git/hooks/commit-msg
-	@chmod +x .git/hooks/pre-commit .git/hooks/commit-msg
-	@echo "Done! Git hooks installed."
+	@echo "Installing pre-commit hooks..."
+	uv run pre-commit install
+	@echo "Done! Git hooks installed via pre-commit framework."
 
 .PHONY: lint
 lint:  ## Run linter and formatter check
