@@ -5,8 +5,8 @@ from data_architect.templates import TEMPLATES
 
 
 def test_manifest_has_expected_file_count():
-    """TEMPLATES has exactly 9 entries."""
-    assert len(TEMPLATES) == 9
+    """TEMPLATES has exactly 11 entries."""
+    assert len(TEMPLATES) == 11
 
 
 def test_all_agent_files_have_yaml_frontmatter():
