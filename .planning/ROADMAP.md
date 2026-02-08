@@ -35,6 +35,11 @@ See: `.planning/milestones/v0.1.0-ROADMAP.md` for full details.
 
 **Dependencies:** None (builds on v0.1.0 foundation)
 
+**Plans:** 1 plan
+
+Plans:
+- [ ] 05-01-PLAN.md — Install pre-commit framework, create config, update bootstrap, remove legacy hooks
+
 **Requirements:**
 - HOOK-01: Pre-commit framework installed via `make bootstrap`
 - HOOK-02: `.pre-commit-config.yaml` exists with local hook running `make check`
@@ -60,8 +65,8 @@ See: `.planning/milestones/v0.1.0-ROADMAP.md` for full details.
 | 2. CLI Scaffolding | v0.1.0 | 2/2 | Complete | 2026-02-07 |
 | 3. Agent Definitions + OpenCode Integration | v0.1.0 | 2/2 | Complete | 2026-02-08 |
 | 4. Agent Quality + Modeling Workflows | v0.1.0 | 3/3 | Complete | 2026-02-08 |
-| 5. Pre-commit Framework Migration | v0.2.0 | 0/? | Pending | — |
+| 5. Pre-commit Framework Migration | v0.2.0 | 0/1 | Pending | — |
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-08 — v0.2.0 Phase 5 defined*
+*Last updated: 2026-02-08 — Phase 5 plans created*
