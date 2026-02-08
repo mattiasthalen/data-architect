@@ -77,11 +77,12 @@ Plans:
   3. Debate terminates within bounded iterations -- agents detect convergence or escalate unresolved disputes to the user for final decision
   4. Veteran Reviewer agent critiques final output using a concrete anti-pattern checklist, not vague quality commentary
   5. Agents produce YAML/JSON specs as the output of CLP debate, conforming to the bootstrapped spec format
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md — AGENTS.md deep methodology (decision trees) and Data Architect CLP orchestration protocol
+- [ ] 04-02-PLAN.md — Subagent depth: SA/BA opposing positions, Veteran Reviewer expanded checklist, DE/AE deepening
+- [ ] 04-03-PLAN.md — Skill workflow protocols and YAML spec example expansion
 
 ## Progress
 
@@ -93,8 +94,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Project Foundation | 2/2 | Complete | 2026-02-07 |
 | 2. CLI Scaffolding | 2/2 | Complete | 2026-02-07 |
 | 3. Agent Definitions + OpenCode Integration | 2/2 | Complete | 2026-02-08 |
-| 4. Agent Quality + Modeling Workflows | 0/0 | Not started | - |
+| 4. Agent Quality + Modeling Workflows | 0/3 | Planning complete | - |
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-08 — Phase 3 complete*
+*Last updated: 2026-02-08 — Phase 4 planned (3 plans)*
