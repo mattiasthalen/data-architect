@@ -214,3 +214,20 @@ def test_agents_md_has_historization_default():
     assert "default" in agents_md.lower(), "AGENTS.md missing default guidance"
     assert "historized" in agents_md, "AGENTS.md missing historized keyword"
     assert "historized: true" in agents_md, "AGENTS.md missing 'historized: true'"
+
+
+def test_data_architect_has_clp_protocols():
+    """Data Architect template contains CLP stage protocols."""
+    da_md = TEMPLATES.get(".opencode/agents/data-architect.md", "")
+    assert "Conceptual Stage" in da_md, "Data Architect missing Conceptual Stage"
+    assert "Logical Stage" in da_md, "Data Architect missing Logical Stage"
+    assert "Physical Stage" in da_md, "Data Architect missing Physical Stage"
+
+
+def test_data_architect_has_debate_protocol():
+    """Data Architect template contains debate protocol with bounded iteration."""
+    da_md = TEMPLATES.get(".opencode/agents/data-architect.md", "")
+    assert "Debate Protocol" in da_md, "Data Architect missing Debate Protocol"
+    assert "Convergence" in da_md, "Data Architect missing Convergence section"
+    assert "ESCALATE" in da_md, "Data Architect missing ESCALATE directive"
+    assert "5 rounds" in da_md, "Data Architect missing 5 rounds iteration limit"
