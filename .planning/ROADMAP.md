@@ -3,7 +3,7 @@
 ## Milestones
 
 - SHIPPED **v0.1.0 Init + Agents** — Phases 1-4 (shipped 2026-02-08)
-- ACTIVE **v0.2.0 Pre-commit Framework** — Phase 5 (started 2026-02-08)
+- SHIPPED **v0.2.0 Pre-commit Framework** — Phase 5 (shipped 2026-02-08)
 
 ## Phases
 
@@ -38,7 +38,7 @@ See: `.planning/milestones/v0.1.0-ROADMAP.md` for full details.
 **Plans:** 1 plan
 
 Plans:
-- [ ] 05-01-PLAN.md — Install pre-commit framework, create config, update bootstrap, remove legacy hooks
+- [x] 05-01-PLAN.md — Install pre-commit framework, create config, update bootstrap, remove legacy hooks (completed 2026-02-08)
 
 **Requirements:**
 - HOOK-01: Pre-commit framework installed via `make bootstrap`
@@ -65,8 +65,8 @@ Plans:
 | 2. CLI Scaffolding | v0.1.0 | 2/2 | Complete | 2026-02-07 |
 | 3. Agent Definitions + OpenCode Integration | v0.1.0 | 2/2 | Complete | 2026-02-08 |
 | 4. Agent Quality + Modeling Workflows | v0.1.0 | 3/3 | Complete | 2026-02-08 |
-| 5. Pre-commit Framework Migration | v0.2.0 | 0/1 | Pending | — |
+| 5. Pre-commit Framework Migration | v0.2.0 | 1/1 | Complete | 2026-02-08 |
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-08 — Phase 5 plans created*
+*Last updated: 2026-02-08 — Phase 5 complete (v0.2.0 shipped)*
