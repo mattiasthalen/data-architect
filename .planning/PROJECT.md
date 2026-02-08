@@ -12,21 +12,20 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Python CLI with `architect init` command — v0.1.0
+- ✓ `architect init` scaffolds OpenCode agent definitions into `.opencode/` in cwd — v0.1.0
+- ✓ Agent team: Data Architect (entry point), Data Engineer, Analytics Engineer, System/Integration Analyst, Business Analyst, Veteran Reviewer — v0.1.0
+- ✓ Data Architect agent gathers business context, reads source docs from filesystem, orchestrates CLP debate — v0.1.0
+- ✓ System Analyst and Business Analyst debate pattern for DAB modeling through CLP stages — v0.1.0
+- ✓ Data Architect synthesizes debate and recommends resolution — v0.1.0
+- ✓ Anchor Modeling rules applied as objective check — v0.1.0
+- ✓ User makes final decision on modeling disputes — v0.1.0
+- ✓ Veteran Reviewer critiques output for anti-patterns and methodology violations — v0.1.0
+- ✓ YAML/JSON specification format as source of truth (output of agent debate) — v0.1.0
+- ✓ Multiple input types: business description, source schemas (Swagger, ERD, OData), business questions — v0.1.0
 
 ### Active
 
-- [ ] Python CLI with `architect init` and `architect generate` commands
-- [ ] `architect init` scaffolds OpenCode agent definitions into `.opencode/` in cwd
-- [ ] Agent team: Data Architect (entry point), Data Engineer, Analytics Engineer, System/Integration Analyst, Business Analyst, Veteran Reviewer
-- [ ] Data Architect agent gathers business context, reads source docs from filesystem, orchestrates CLP debate
-- [ ] System Analyst and Business Analyst debate pattern for DAB modeling through CLP stages
-- [ ] Data Architect synthesizes debate and recommends resolution
-- [ ] Anchor Modeling rules applied as objective check
-- [ ] User makes final decision on modeling disputes
-- [ ] Veteran Reviewer critiques output for anti-patterns and methodology violations
-- [ ] YAML/JSON specification format as source of truth (output of agent debate)
-- [ ] Multiple input types: business description, source schemas (Swagger, ERD, OData), business questions — read from filesystem
 - [ ] `architect generate` produces DAS scripts from source schemas (deterministic)
 - [ ] `architect generate` produces DAR scripts from DAB output (deterministic)
 - [ ] Demo scenario validation (e-commerce or similar)
@@ -40,6 +39,12 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 - DAS/DAR agent debate — these layers are deterministic transforms, not probabilistic
 
 ## Context
+
+**Current State (v0.1.0 shipped):**
+- 2,161 lines of Python (src + tests), 49 tests passing, 92.77% coverage
+- 14 files scaffolded by `architect init` (6 agents, 4 skills, AGENTS.md, opencode.json, 2 spec examples)
+- Pure-functional codebase: frozen dataclasses for data, pure functions for behavior
+- UV + Hatchling build, dynamic versioning from git tags, Makefile quality gates
 
 **Methodology Stack:**
 - **ADSS** (Patrik Lager): Three-layer architecture — DAS (Data According to System), DAB (Data According to Business), DAR (Data According to Requirements). Unidirectional flow DAS → DAB → DAR. Each layer decouples the next from upstream changes.
@@ -111,18 +116,21 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Pivot from Claude Code skill to Python CLI + OpenCode agents | More flexibility, provider-agnostic, broader reach | — Pending |
-| Pure functional Python, no classes | Immutability reduces bugs, easier to test, fits TDD mandate | — Pending |
-| TDD mandatory | Correctness is critical for data warehouse design tooling | — Pending |
-| OpenCode agents instead of Claude-specific | Provider flexibility, OpenCode.ai agent ecosystem | — Pending |
-| DAB is probabilistic (agents), DAS/DAR are deterministic (generators) | CLP debate needs AI reasoning; DAS/DAR are mechanical transforms from known inputs | — Pending |
-| Data Architect as entry point agent | Natural design authority, gathers context before orchestrating debate | — Pending |
-| Specs as contract between agents and generators | Clean separation of AI creativity and deterministic output | — Pending |
-| Anchor Modeling for DAB | Maximum agility — non-destructive schema evolution, resilient to change | — Pending |
-| Milestone 1: init + agents only | Prove the agent experience before building generators | — Pending |
-| UV for package management | Modern, fast, replaces pip/poetry/setuptools | — Pending |
-| Dynamic versioning from git tags | Single source of truth for version, no manual bumps | — Pending |
-| Makefile as task runner | Universal, no extra deps, bootstrap/lint/type/test/check | — Pending |
+| Pivot from Claude Code skill to Python CLI + OpenCode agents | More flexibility, provider-agnostic, broader reach | ✓ Good — v0.1.0 |
+| Pure functional Python, no classes | Immutability reduces bugs, easier to test, fits TDD mandate | ✓ Good — v0.1.0 |
+| TDD mandatory | Correctness is critical for data warehouse design tooling | ✓ Good — 49 tests, 92.77% coverage |
+| OpenCode agents instead of Claude-specific | Provider flexibility, OpenCode.ai agent ecosystem | ✓ Good — v0.1.0 |
+| DAB is probabilistic (agents), DAS/DAR are deterministic (generators) | CLP debate needs AI reasoning; DAS/DAR are mechanical transforms from known inputs | ✓ Good — clean separation |
+| Data Architect as entry point agent | Natural design authority, gathers context before orchestrating debate | ✓ Good — v0.1.0 |
+| Specs as contract between agents and generators | Clean separation of AI creativity and deterministic output | ✓ Good — v0.1.0 |
+| Anchor Modeling for DAB | Maximum agility — non-destructive schema evolution, resilient to change | ✓ Good — v0.1.0 |
+| Milestone 1: init + agents only | Prove the agent experience before building generators | ✓ Good — shipped in 2 days |
+| UV for package management | Modern, fast, replaces pip/poetry/setuptools | ✓ Good — v0.1.0 |
+| Dynamic versioning from git tags | Single source of truth for version, no manual bumps | ✓ Good — v0.1.0 |
+| Makefile as task runner | Universal, no extra deps, bootstrap/lint/type/test/check | ✓ Good — v0.1.0 |
+| Simple git hooks over pre-commit framework | Zero Node.js/Python deps for hooks, bash is sufficient | ✓ Good — v0.1.0 |
+| Skills route through data-architect agent | Single orchestration point, consistent entry | ✓ Good — v0.1.0 |
+| Bounded iteration debate (5 rounds max) | Prevents infinite loops, forces convergence or user escalation | ✓ Good — v0.1.0 |
 
 ---
-*Last updated: 2026-02-07 after pivot*
+*Last updated: 2026-02-08 after v0.1.0 milestone*
