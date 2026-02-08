@@ -26,6 +26,12 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 
 ### Active
 
+- [ ] Pre-commit framework with `.pre-commit-config.yaml` calling `make check`
+- [ ] Conventional commit validation via pre-commit hook
+- [ ] `make bootstrap` installs pre-commit framework hooks
+
+### Deferred (v0.3.0+)
+
 - [ ] `architect generate` produces DAS scripts from source schemas (deterministic)
 - [ ] `architect generate` produces DAR scripts from DAB output (deterministic)
 - [ ] Demo scenario validation (e-commerce or similar)
@@ -104,7 +110,7 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 - **Platform**: OpenCode.ai agents — must conform to OpenCode's agent definition format
 - **CLI**: Python CLI (`architect init`, `architect generate`)
 - **Tooling**: UV for package management and builds. Linting, type checking, and testing enforced.
-- **Pre-commit**: Pre-commit hooks installed via `make bootstrap`. Enforces lint, type check, and commit message format (conventional commits) before every commit.
+- **Pre-commit**: Pre-commit framework (`.pre-commit-config.yaml`) installed via `make bootstrap`. Hooks call `make check` as single source of truth. Enforces lint, type check, and commit message format (conventional commits) before every commit.
 - **Build**: Makefile with targets: `bootstrap` (install deps + pre-commit hooks), `lint`, `type`, `test`, `check` (runs all three)
 - **Versioning**: Dynamic versioning from git tags — no hardcoded version strings
 - **CI/CD**: CI runs lint + type + test on PRs. CD packages release and publishes to PyPI on tagged releases.
@@ -128,9 +134,19 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 | UV for package management | Modern, fast, replaces pip/poetry/setuptools | ✓ Good — v0.1.0 |
 | Dynamic versioning from git tags | Single source of truth for version, no manual bumps | ✓ Good — v0.1.0 |
 | Makefile as task runner | Universal, no extra deps, bootstrap/lint/type/test/check | ✓ Good — v0.1.0 |
-| Simple git hooks over pre-commit framework | Zero Node.js/Python deps for hooks, bash is sufficient | ✓ Good — v0.1.0 |
+| Simple git hooks over pre-commit framework | Zero Node.js/Python deps for hooks, bash is sufficient | ⚠️ Revisit — migrating to pre-commit framework in v0.2.0 |
 | Skills route through data-architect agent | Single orchestration point, consistent entry | ✓ Good — v0.1.0 |
 | Bounded iteration debate (5 rounds max) | Prevents infinite loops, forces convergence or user escalation | ✓ Good — v0.1.0 |
 
+## Current Milestone: v0.2.0 Pre-commit Framework
+
+**Goal:** Migrate from simple bash git hooks to the pre-commit framework, with `.pre-commit-config.yaml` calling `make check` as the single source of truth.
+
+**Target features:**
+- `.pre-commit-config.yaml` with hooks that call `make check`
+- Conventional commit message validation via pre-commit
+- Updated `make bootstrap` to install pre-commit framework
+- Remove legacy `scripts/hooks/` bash scripts
+
 ---
-*Last updated: 2026-02-08 after v0.1.0 milestone*
+*Last updated: 2026-02-08 after v0.2.0 milestone started*

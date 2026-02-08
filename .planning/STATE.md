@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** The DAB layer must produce a correct, methodology-compliant Anchor Model through genuine agent debate -- not just template generation.
-**Current focus:** Planning next milestone (v0.2.0 — `architect generate`)
+**Current focus:** v0.2.0 — Pre-commit Framework Migration
 
 ## Current Position
 
-Phase: Milestone complete — awaiting next milestone
-Plan: N/A
-Status: Ready for next milestone
-Last activity: 2026-02-08 -- v0.1.0 milestone shipped
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-08 — Milestone v0.2.0 started
 
-Progress: [##########] 100% (v0.1.0)
+Progress: [░░░░░░░░░░] 0% (v0.2.0)
 
 ## Performance Metrics
 
@@ -49,9 +49,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: v0.1.0 milestone completed and archived
-Resume file: Run `/gsd:new-milestone` to start v0.2.0
+Stopped at: v0.2.0 milestone started — defining requirements
+Resume file: Continue with requirements → roadmap
 
 ---
 *State initialized: 2026-02-07*
-*Last updated: 2026-02-08 — v0.1.0 milestone complete*
+*Last updated: 2026-02-08 — v0.2.0 milestone started*
