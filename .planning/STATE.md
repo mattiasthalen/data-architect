@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 7 of 10 (SQL Generation Engine)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-09 -- Completed 07-02-PLAN.md (DML/MERGE builders with SQLGlot)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-09 -- Completed 07-03-PLAN.md (CLI integration with format/dialect flags)
 
-Progress: [##########█████.....] 68% (15/22 plans across all milestones)
+Progress: [##########██████....] 73% (16/22 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
-- Average duration: 11.5 min
-- Total execution time: 2.80 hours
+- Total plans completed: 16
+- Average duration: 11.3 min
+- Total execution time: 2.93 hours
 
 **By Phase:**
 
@@ -33,7 +33,7 @@ Progress: [##########█████.....] 68% (15/22 plans across all milestone
 | 4. Agent Quality and Modeling Workflows | 3/3 | 12.6 min | 4.2 min |
 | 5. Pre-commit Framework Migration | 1/1 | 2 min | 2.0 min |
 | 6. YAML Schema Foundation | 3/3 | 125 min | 41.7 min |
-| 7. SQL Generation Engine | 2/3 | 21 min | 10.5 min |
+| 7. SQL Generation Engine | 3/3 | 28.8 min | 9.6 min |
 
 ## Accumulated Context
 
@@ -58,6 +58,9 @@ Recent decisions affecting current work:
 - Historized attributes follow Anchor Modeling append-only: insert with new changed_at, never update (07-02)
 - Metadata population uses deterministic literals: 'architect', 'architect-generated' (07-02)
 - SQL generation via f-string templates parsed by SQLGlot for complex MERGE statements (07-02)
+- Inline Bruin formatting in CLI (07-03): requires entity metadata unavailable in generic write_output
+- Bruin strategy: DDL always create+replace, DML merge for historized, create+replace for static (07-03)
+- CLI validation flow: file exists → spec validates → generate → format → write → summarize (07-03)
 
 ### Pending Todos
 
@@ -70,9 +73,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 7 Plan 2 complete (DML/MERGE builders with SQLGlot)
-Resume file: .planning/phases/07-sql-generation-engine/07-02-SUMMARY.md
+Stopped at: Phase 7 complete (SQL Generation Engine)
+Resume file: .planning/phases/07-sql-generation-engine/07-03-SUMMARY.md
 
 ---
 *State initialized: 2026-02-07*
-*Last updated: 2026-02-09 -- Completed 07-02 (DML/MERGE builders with SCD2 append-only) - Phase 7 in progress*
+*Last updated: 2026-02-09 -- Completed 07-03 (CLI integration with format/dialect flags) - Phase 7 COMPLETE*
