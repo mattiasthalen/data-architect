@@ -16,6 +16,8 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "pydantic>=2.10.0",
+    "ruamel-yaml>=0.18.0",
     "typer>=0.15.0",
 ]
 
@@ -79,6 +81,8 @@ ignore = [
 "tests/**" = ["S101", "ANN", "ARG"]
 "src/data_architect/cli.py" = ["B008"]
 "src/data_architect/templates.py" = ["E501"]  # Template strings contain markdown prose
+"src/data_architect/models/common.py" = ["ANN401"]  # Helper functions need Any for flexibility
+"src/data_architect/models/spec.py" = ["TC001"]  # Pydantic needs runtime imports for model_validate
 
 [tool.mypy]
 python_version = "3.13"
