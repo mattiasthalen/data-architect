@@ -20,12 +20,18 @@ from data_architect.generation.formatters import (
     format_raw,
     write_output,
 )
+from data_architect.generation.keyset_sql import (
+    build_composite_natural_key_expr,
+    build_keyset_expr,
+)
 
 __all__ = [
     "build_anchor_merge",
     "build_anchor_table",
     "build_attribute_merge",
     "build_attribute_table",
+    "build_composite_natural_key_expr",
+    "build_keyset_expr",
     "build_knot_merge",
     "build_knot_table",
     "build_staging_table",

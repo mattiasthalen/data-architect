@@ -102,6 +102,13 @@ class Anchor(BaseModel):
     )
 
     # YAML-extension fields
-    staging_mappings: list[Any] = yaml_ext_field(
+    staging_mappings: list[StagingMapping] = yaml_ext_field(
         default_factory=list, description="Staging table mappings (Phase 8)"
     )
+
+
+# Import after class definitions to avoid circular import
+from data_architect.models.staging import StagingMapping  # noqa: E402, TC001
+
+# Rebuild model with the now-available StagingMapping type
+Anchor.model_rebuild()

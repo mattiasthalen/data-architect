@@ -278,10 +278,8 @@ def generate_all_ddl(spec: Spec, dialect: str) -> dict[str, str]:
         if anchor.staging_mappings:
             for mapping in anchor.staging_mappings:
                 table = staging_table_name(mapping)
-                # Extract columns from mapping
-                columns = [
-                    (col["name"], col["type"]) for col in mapping.get("columns", [])
-                ]
+                # Extract columns from mapping model
+                columns = [(col.name, col.type) for col in mapping.columns]
                 staging_tables[table] = (table, columns)
 
     # Generate staging DDL in sorted order

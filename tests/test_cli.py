@@ -398,7 +398,11 @@ anchor:
     descriptor: Actor
     identity: int
     staging_mappings:
-      - table: stg_actors
+      - system: ERP
+        tenant: ACME
+        table: stg_actors
+        natural_key_columns:
+          - AC_ID
         columns:
           - name: AC_ID
             type: int

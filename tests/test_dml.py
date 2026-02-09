@@ -80,11 +80,20 @@ def test_build_anchor_merge_tsql_uses_merge():
 
 def test_build_anchor_merge_uses_staging_table_name_convention():
     """Verify the staging source table name matches staging_table_name() exactly."""
+    from data_architect.models.staging import StagingMapping
+
     anchor = Anchor(
         mnemonic="CU",
         descriptor="Customer",
         identity="bigint",
-        staging_mappings=[{"table": "stg_customers", "columns": []}],
+        staging_mappings=[
+            StagingMapping(
+                system="ERP",
+                tenant="ACME",
+                table="stg_customers",
+                natural_key_columns=["customer_id"],
+            )
+        ],
     )
     result = build_anchor_merge(anchor, "postgres")
 

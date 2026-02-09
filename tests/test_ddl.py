@@ -132,7 +132,14 @@ def test_tie_table_name() -> None:
 
 def test_staging_table_name() -> None:
     """Verify staging_table_name extracts table name from mapping."""
-    mapping = {"table": "stg_customers", "columns": []}
+    from data_architect.models.staging import StagingMapping
+
+    mapping = StagingMapping(
+        system="ERP",
+        tenant="ACME",
+        table="stg_customers",
+        natural_key_columns=["customer_id"],
+    )
     assert staging_table_name(mapping) == "stg_customers"
 
 
@@ -375,19 +382,24 @@ def test_build_staging_table_multi_dialect() -> None:
 
 def test_generate_all_ddl_includes_staging_from_mappings() -> None:
     """Verify generate_all_ddl includes staging when anchor has staging_mappings."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
     # Create a spec with staging mappings
     anchor = Anchor(
         mnemonic="CU",
         descriptor="Customer",
         identity="bigint",
         staging_mappings=[
-            {
-                "table": "stg_customers",
-                "columns": [
-                    {"name": "customer_id", "type": "bigint"},
-                    {"name": "customer_name", "type": "varchar(100)"},
+            StagingMapping(
+                system="ERP",
+                tenant="ACME",
+                table="stg_customers",
+                natural_key_columns=["customer_id"],
+                columns=[
+                    StagingColumn(name="customer_id", type="bigint"),
+                    StagingColumn(name="customer_name", type="varchar(100)"),
                 ],
-            }
+            )
         ],
     )
     spec = Spec(anchors=[anchor])

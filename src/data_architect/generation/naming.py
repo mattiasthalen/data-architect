@@ -1,9 +1,8 @@
 """Deterministic naming conventions for tables and files."""
 
-from typing import Any
-
 from data_architect.models.anchor import Anchor, Attribute
 from data_architect.models.knot import Knot
+from data_architect.models.staging import StagingMapping
 from data_architect.models.tie import Tie
 
 
@@ -67,14 +66,13 @@ def tie_table_name(tie: Tie) -> str:
     return f"{types}_{roles}"
 
 
-def staging_table_name(mapping: dict[str, Any]) -> str:
+def staging_table_name(mapping: StagingMapping) -> str:
     """Extract staging table name from mapping definition.
 
     Args:
-        mapping: Staging mapping dictionary with "table" key
+        mapping: Staging mapping model instance
 
     Returns:
-        Table name from mapping["table"]
+        Table name from mapping.table
     """
-    table: str = mapping["table"]
-    return table
+    return mapping.table
