@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** The DAB layer must produce a correct, methodology-compliant Anchor Model through genuine agent debate -- not just template generation.
-**Current focus:** v0.3.0 DAB Generation -- Phase 6 (YAML Schema Foundation and Spec Validation)
+**Current focus:** v0.3.0 DAB Generation -- Phase 7 (SQL Generation Engine)
 
 ## Current Position
 
-Phase: 6 of 10 (YAML Schema Foundation and Spec Validation)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-09 -- Completed 06-03-PLAN.md (DAB init spec template)
+Phase: 7 of 10 (SQL Generation Engine)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-09 -- Completed 07-01-PLAN.md (DDL builders with SQLGlot)
 
-Progress: [##########███.......] 59% (13/22 plans across all milestones)
+Progress: [##########████......] 64% (14/22 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 11.2 min
-- Total execution time: 2.45 hours
+- Total plans completed: 14
+- Average duration: 12.1 min
+- Total execution time: 2.70 hours
 
 **By Phase:**
 
@@ -33,6 +33,7 @@ Progress: [##########███.......] 59% (13/22 plans across all milestones)
 | 4. Agent Quality and Modeling Workflows | 3/3 | 12.6 min | 4.2 min |
 | 5. Pre-commit Framework Migration | 1/1 | 2 min | 2.0 min |
 | 6. YAML Schema Foundation | 3/3 | 125 min | 41.7 min |
+| 7. SQL Generation Engine | 1/3 | 15 min | 15.0 min |
 
 ## Accumulated Context
 
@@ -50,6 +51,9 @@ Recent decisions affecting current work:
 - StrEnum over str + Enum for SchemaLayer (06-01: Ruff UP042 auto-fix)
 - Runtime imports for Pydantic models (06-01: TYPE_CHECKING breaks model_validate)
 - TC001/ANN401 ignores for validation module (06-02: runtime type access needed)
+- Column ordering convention: identity, FKs, value, bitemporal, metadata (07-01)
+- Conditional bitemporal columns based on entity time_range attribute (07-01)
+- Staging table DDL from raw dict structure; formal Pydantic models in Phase 8 (07-01)
 
 ### Pending Todos
 
@@ -62,9 +66,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 6 Plan 3 complete (DAB init spec template) - **Phase 6 Complete**
-Resume file: .planning/phases/06-yaml-schema-foundation-and-spec-validation/06-03-SUMMARY.md
+Stopped at: Phase 7 Plan 1 complete (DDL builders with SQLGlot)
+Resume file: .planning/phases/07-sql-generation-engine/07-01-SUMMARY.md
 
 ---
 *State initialized: 2026-02-07*
-*Last updated: 2026-02-09 -- Completed 06-03 (DAB init spec template with inline comments) - Phase 6 complete*
+*Last updated: 2026-02-09 -- Completed 07-01 (DDL builders with SQLGlot ASTs) - Phase 7 in progress*
