@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 
 Phase: 8 of 10 (Keyset Identity and Staging Mappings)
 Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-09 -- Completed 08-03-PLAN.md (Multi-source conflict resolution)
+Status: Gaps found (15/18 truths verified - 2 critical gaps)
+Last activity: 2026-02-09 -- Phase 8 execution complete, verification found missing keyset integration in DML
 
 Progress: [##########██████████] 86% (19/22 plans across all milestones)
 
@@ -78,14 +78,19 @@ None.
 
 ### Blockers/Concerns
 
-None.
+**Phase 8 Gaps (Critical):**
+1. Keyset identity NOT integrated into DML generation - build_keyset_expr() exists but not imported/called in dml.py
+2. Column mappings not used in DML SELECT - mapping.column_mappings exists but not used in build_attribute_merge()
+
+See: .planning/phases/08-keyset-identity-and-staging-mappings/08-VERIFICATION.md for full gap analysis
 
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 8 complete (All plans finished: keyset identity, StagingMapping models, multi-source conflict resolution)
-Resume file: .planning/phases/08-keyset-identity-and-staging-mappings/08-03-SUMMARY.md
+Stopped at: Phase 8 execution complete with gaps found (15/18 truths verified)
+Resume file: .planning/phases/08-keyset-identity-and-staging-mappings/08-VERIFICATION.md
+Next action: /gsd:plan-phase 8 --gaps (close integration gaps before proceeding to Phase 9)
 
 ---
 *State initialized: 2026-02-07*
-*Last updated: 2026-02-09 -- Completed 08-03 (Multi-source conflict resolution) - Phase 8 complete*
+*Last updated: 2026-02-09 -- Phase 8 execution complete with gaps (keyset integration missing from DML)*
