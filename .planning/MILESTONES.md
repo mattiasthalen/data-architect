@@ -1,5 +1,32 @@
 # Project Milestones: Data Architect
 
+## v0.2.0 Pre-commit Framework (Shipped: 2026-02-09)
+
+**Delivered:** Migrated from legacy bash git hooks to pre-commit framework with declarative YAML config, automated installation, and conventional commit validation
+
+**Phases completed:** 5 (1 plan total)
+
+**Key accomplishments:**
+
+- Pre-commit framework integrated with `make check` execution on every commit
+- Conventional commit message validation via maintained `conventional-pre-commit` hook
+- Legacy `scripts/hooks/` bash scripts completely removed
+- Single `make bootstrap` command installs all dev dependencies and git hooks
+- Declarative `.pre-commit-config.yaml` replaces manual hook scripts
+
+**Stats:**
+
+- 5 files created/modified
+- 2,161 lines of Python (unchanged — tooling milestone)
+- 1 phase, 1 plan, 3 tasks
+- 1 day (2026-02-08 to 2026-02-09)
+
+**Git range:** `5d91e04` (plan) -> `285f0dd` (audit)
+
+**What's next:** `architect generate` for deterministic DAS/DAR script generation from YAML specs
+
+---
+
 ## v0.1.0 Init + Agents (Shipped: 2026-02-08)
 
 **Delivered:** Pip-installable Python CLI that scaffolds a team of six methodology-deep OpenCode AI agents for Anchor Modeling data warehouse design

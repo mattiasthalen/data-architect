@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-08)
+See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** The DAB layer must produce a correct, methodology-compliant Anchor Model through genuine agent debate -- not just template generation.
-**Current focus:** v0.2.0 — Pre-commit Framework Migration
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 5 of 5 (Pre-commit Framework Migration)
-Plan: 1 of 1 complete
-Status: Phase complete
-Last activity: 2026-02-08 — Completed 05-01-PLAN.md
+Phase: 5 of 5 complete
+Plan: All complete
+Status: v0.2.0 milestone shipped
+Last activity: 2026-02-09 — v0.2.0 milestone complete
 
-Progress: [██████████] 100% (Phase 5)
+Progress: [██████████] 100% (all milestones shipped)
 
 ## Performance Metrics
 
@@ -37,14 +37,7 @@ Progress: [██████████] 100% (Phase 5)
 
 ### Decisions
 
-All v0.1.0 decisions logged in PROJECT.md Key Decisions table with outcomes.
-
-**v0.2.0 Decisions:**
-1. **Pre-commit framework migration** - Reversed v0.1.0 decision for declarative hook management
-2. **language: system for make-check hook** - Ensures full project environment access
-3. **pass_filenames: false** - Let Make discover files via glob patterns
-4. **always_run: true** - Run make check on every commit for comprehensive validation
-5. **conventional-pre-commit** - Use maintained external hook instead of hand-rolled regex
+All decisions logged in PROJECT.md Key Decisions table with outcomes.
 
 ### Pending Todos
 
@@ -56,10 +49,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-08
-Stopped at: Phase 5 complete (05-01-PLAN.md)
-Resume file: .planning/phases/05-pre-commit-framework/05-01-SUMMARY.md
+Last session: 2026-02-09
+Stopped at: v0.2.0 milestone complete
+Resume file: .planning/MILESTONES.md
 
 ---
 *State initialized: 2026-02-07*
-*Last updated: 2026-02-08 — Phase 5 complete: Pre-commit framework migration*
+*Last updated: 2026-02-09 — v0.2.0 milestone complete*

@@ -23,12 +23,13 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 - ✓ Veteran Reviewer critiques output for anti-patterns and methodology violations — v0.1.0
 - ✓ YAML/JSON specification format as source of truth (output of agent debate) — v0.1.0
 - ✓ Multiple input types: business description, source schemas (Swagger, ERD, OData), business questions — v0.1.0
+- ✓ Pre-commit framework with `.pre-commit-config.yaml` calling `make check` — v0.2.0
+- ✓ Conventional commit validation via pre-commit hook — v0.2.0
+- ✓ `make bootstrap` installs pre-commit framework hooks — v0.2.0
 
 ### Active
 
-- [ ] Pre-commit framework with `.pre-commit-config.yaml` calling `make check`
-- [ ] Conventional commit validation via pre-commit hook
-- [ ] `make bootstrap` installs pre-commit framework hooks
+(None — define next milestone requirements with `/gsd:new-milestone`)
 
 ### Deferred (v0.3.0+)
 
@@ -46,11 +47,14 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 
 ## Context
 
-**Current State (v0.1.0 shipped):**
+**Current State (v0.2.0 shipped):**
 - 2,161 lines of Python (src + tests), 49 tests passing, 92.77% coverage
 - 14 files scaffolded by `architect init` (6 agents, 4 skills, AGENTS.md, opencode.json, 2 spec examples)
 - Pure-functional codebase: frozen dataclasses for data, pure functions for behavior
 - UV + Hatchling build, dynamic versioning from git tags, Makefile quality gates
+- Pre-commit framework with `.pre-commit-config.yaml` calling `make check`
+- Conventional commit validation via `conventional-pre-commit` hook
+- `make bootstrap` installs deps + pre-commit hooks in single command
 
 **Methodology Stack:**
 - **ADSS** (Patrik Lager): Three-layer architecture — DAS (Data According to System), DAB (Data According to Business), DAR (Data According to Requirements). Unidirectional flow DAS → DAB → DAR. Each layer decouples the next from upstream changes.
@@ -134,19 +138,12 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 | UV for package management | Modern, fast, replaces pip/poetry/setuptools | ✓ Good — v0.1.0 |
 | Dynamic versioning from git tags | Single source of truth for version, no manual bumps | ✓ Good — v0.1.0 |
 | Makefile as task runner | Universal, no extra deps, bootstrap/lint/type/test/check | ✓ Good — v0.1.0 |
-| Simple git hooks over pre-commit framework | Zero Node.js/Python deps for hooks, bash is sufficient | ⚠️ Revisit — migrating to pre-commit framework in v0.2.0 |
+| Simple git hooks over pre-commit framework | Zero Node.js/Python deps for hooks, bash is sufficient | ✓ Revisited — migrated to pre-commit framework in v0.2.0 |
+| Pre-commit framework over bash hooks | Declarative YAML config, ecosystem compatibility, automatic installation | ✓ Good — v0.2.0 |
+| conventional-pre-commit external hook | Maintained hook instead of hand-rolled regex | ✓ Good — v0.2.0 |
+| language: system for make-check hook | Make check needs full project environment access | ✓ Good — v0.2.0 |
 | Skills route through data-architect agent | Single orchestration point, consistent entry | ✓ Good — v0.1.0 |
 | Bounded iteration debate (5 rounds max) | Prevents infinite loops, forces convergence or user escalation | ✓ Good — v0.1.0 |
 
-## Current Milestone: v0.2.0 Pre-commit Framework
-
-**Goal:** Migrate from simple bash git hooks to the pre-commit framework, with `.pre-commit-config.yaml` calling `make check` as the single source of truth.
-
-**Target features:**
-- `.pre-commit-config.yaml` with hooks that call `make check`
-- Conventional commit message validation via pre-commit
-- Updated `make bootstrap` to install pre-commit framework
-- Remove legacy `scripts/hooks/` bash scripts
-
 ---
-*Last updated: 2026-02-08 after v0.2.0 milestone started*
+*Last updated: 2026-02-09 after v0.2.0 milestone*

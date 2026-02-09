@@ -3,7 +3,7 @@
 ## Milestones
 
 - SHIPPED **v0.1.0 Init + Agents** — Phases 1-4 (shipped 2026-02-08)
-- SHIPPED **v0.2.0 Pre-commit Framework** — Phase 5 (shipped 2026-02-08)
+- SHIPPED **v0.2.0 Pre-commit Framework** — Phase 5 (shipped 2026-02-09)
 
 ## Phases
 
@@ -25,35 +25,14 @@ See: `.planning/milestones/v0.1.0-ROADMAP.md` for full details.
 
 </details>
 
----
+<details>
+<summary>SHIPPED v0.2.0 Pre-commit Framework (Phase 5) — SHIPPED 2026-02-09</summary>
 
-## v0.2.0 Pre-commit Framework
+- [x] Phase 5: Pre-commit Framework Migration (1/1 plan) — completed 2026-02-08
 
-### Phase 5: Pre-commit Framework Migration
+See: `.planning/milestones/v0.2.0-ROADMAP.md` for full details.
 
-**Goal:** Pre-commit framework replaces legacy bash hooks for quality enforcement.
-
-**Dependencies:** None (builds on v0.1.0 foundation)
-
-**Plans:** 1 plan
-
-Plans:
-- [x] 05-01-PLAN.md — Install pre-commit framework, create config, update bootstrap, remove legacy hooks (completed 2026-02-08)
-
-**Requirements:**
-- HOOK-01: Pre-commit framework installed via `make bootstrap`
-- HOOK-02: `.pre-commit-config.yaml` exists with local hook running `make check`
-- HOOK-03: Commit-msg hook validates conventional commit format
-- HOOK-04: Legacy `scripts/hooks/` bash scripts removed
-- HOOK-05: `make bootstrap` updated to use `pre-commit install`
-
-**Success Criteria:**
-1. Developer runs `make bootstrap` and pre-commit hooks are installed automatically
-2. Developer commits code and `make check` runs automatically via pre-commit hook
-3. Developer commits with invalid message format and commit is rejected with helpful error
-4. Legacy `scripts/hooks/` directory does not exist in repository
-
-**Phase Directory:** `.planning/phases/05-pre-commit-framework/`
+</details>
 
 ---
 
@@ -69,4 +48,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-08 — Phase 5 complete (v0.2.0 shipped)*
+*Last updated: 2026-02-09 — v0.2.0 milestone archived*
