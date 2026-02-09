@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 8 of 10 (Keyset Identity and Staging Mappings)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-09 -- Completed 08-02-PLAN.md (StagingMapping models and keyset SQL builder)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-09 -- Completed 08-03-PLAN.md (Multi-source conflict resolution)
 
-Progress: [##########████████..] 82% (18/22 plans across all milestones)
+Progress: [##########██████████] 86% (19/22 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
-- Average duration: 12.3 min
-- Total execution time: 3.70 hours
+- Total plans completed: 19
+- Average duration: 11.7 min
+- Total execution time: 3.78 hours
 
 **By Phase:**
 
@@ -34,7 +34,7 @@ Progress: [##########████████..] 82% (18/22 plans across all mil
 | 5. Pre-commit Framework Migration | 1/1 | 2 min | 2.0 min |
 | 6. YAML Schema Foundation | 3/3 | 125 min | 41.7 min |
 | 7. SQL Generation Engine | 3/3 | 28.8 min | 9.6 min |
-| 8. Keyset Identity and Staging Mappings | 2/3 | 25.8 min | 12.9 min |
+| 8. Keyset Identity and Staging Mappings | 3/3 | 30.8 min | 10.3 min |
 
 ## Accumulated Context
 
@@ -68,6 +68,9 @@ Recent decisions affecting current work:
 - Separate columns/column_mappings in StagingMapping (08-02): columns for DDL, column_mappings for DML lineage
 - Keyset prefix escaped at generation time, natural key at runtime (08-02): nested REPLACE in SQL
 - Composite natural key NULL propagation (08-02): CASE WHEN any component NULL THEN NULL
+- Multi-source conflict resolution (08-03): priority (lower wins), then alphabetical by system/tenant
+- Multi-source file naming (08-03): system suffix for 2+ sources, no suffix for single-source
+- Per-source MERGE generation (08-03): one MERGE statement per staging mapping with deterministic ordering
 
 ### Pending Todos
 
@@ -80,9 +83,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 8, Plan 2 complete (StagingMapping models and keyset SQL builder)
-Resume file: .planning/phases/08-keyset-identity-and-staging-mappings/08-02-SUMMARY.md
+Stopped at: Phase 8 complete (All plans finished: keyset identity, StagingMapping models, multi-source conflict resolution)
+Resume file: .planning/phases/08-keyset-identity-and-staging-mappings/08-03-SUMMARY.md
 
 ---
 *State initialized: 2026-02-07*
-*Last updated: 2026-02-09 -- Completed 08-02 (StagingMapping models and keyset SQL builder) - Phase 8 in progress*
+*Last updated: 2026-02-09 -- Completed 08-03 (Multi-source conflict resolution) - Phase 8 complete*
