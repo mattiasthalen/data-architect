@@ -1,5 +1,6 @@
 """SQL generation for Anchor Model entities."""
 
+from data_architect.generation.conflict import resolve_staging_order
 from data_architect.generation.ddl import (
     build_anchor_table,
     build_attribute_table,
@@ -41,5 +42,6 @@ __all__ = [
     "format_raw",
     "generate_all_ddl",
     "generate_all_dml",
+    "resolve_staging_order",
     "write_output",
 ]

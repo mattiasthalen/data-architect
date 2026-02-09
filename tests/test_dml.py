@@ -336,3 +336,207 @@ def test_generate_all_dml_filenames_match_ddl():
 
     # Should have a load file for the anchor
     assert "CU_Customer_load.sql" in result
+
+
+# ============================================================================
+# Multi-Source Tests (STG-05)
+# ============================================================================
+
+
+def test_generate_all_dml_multi_source_generates_multiple_merges():
+    """Anchor with 2 staging_mappings generates 2 MERGE statements."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[
+            StagingMapping(
+                system="Northwind",
+                tenant="US",
+                table="stg_nw_customers",
+                natural_key_columns=["CustomerID"],
+                columns=[StagingColumn(name="CustomerID", type="varchar(10)")],
+                column_mappings={},
+                priority=1,
+            ),
+            StagingMapping(
+                system="SAP",
+                tenant="EU",
+                table="stg_sap_customers",
+                natural_key_columns=["KUNNR"],
+                columns=[StagingColumn(name="KUNNR", type="varchar(10)")],
+                column_mappings={},
+                priority=2,
+            ),
+        ],
+    )
+    spec = Spec(anchors=[anchor], knots=[], ties=[])
+
+    result = generate_all_dml(spec, "postgres")
+
+    # Should have two load files with source suffixes
+    assert "CU_Customer_load_northwind.sql" in result
+    assert "CU_Customer_load_sap.sql" in result
+    # Should NOT have the generic single-source file
+    assert "CU_Customer_load.sql" not in result
+
+
+def test_generate_all_dml_multi_source_uses_correct_staging_table():
+    """Each MERGE uses its own source table name."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[
+            StagingMapping(
+                system="Northwind",
+                tenant="US",
+                table="stg_nw_customers",
+                natural_key_columns=["CustomerID"],
+                columns=[StagingColumn(name="CustomerID", type="varchar(10)")],
+                column_mappings={},
+                priority=1,
+            ),
+            StagingMapping(
+                system="SAP",
+                tenant="EU",
+                table="stg_sap_customers",
+                natural_key_columns=["KUNNR"],
+                columns=[StagingColumn(name="KUNNR", type="varchar(10)")],
+                column_mappings={},
+                priority=2,
+            ),
+        ],
+    )
+    spec = Spec(anchors=[anchor], knots=[], ties=[])
+
+    result = generate_all_dml(spec, "postgres")
+
+    # Northwind MERGE should reference stg_nw_customers
+    nw_sql = result["CU_Customer_load_northwind.sql"]
+    assert "stg_nw_customers" in nw_sql
+
+    # SAP MERGE should reference stg_sap_customers
+    sap_sql = result["CU_Customer_load_sap.sql"]
+    assert "stg_sap_customers" in sap_sql
+
+
+def test_generate_all_dml_multi_source_respects_priority_order():
+    """Multi-source files appear in priority order (lower number first)."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[
+            StagingMapping(
+                system="SAP",
+                tenant="EU",
+                table="stg_sap",
+                natural_key_columns=["id"],
+                columns=[StagingColumn(name="id", type="varchar(10)")],
+                column_mappings={},
+                priority=5,
+            ),
+            StagingMapping(
+                system="Northwind",
+                tenant="US",
+                table="stg_nw",
+                natural_key_columns=["id"],
+                columns=[StagingColumn(name="id", type="varchar(10)")],
+                column_mappings={},
+                priority=1,
+            ),
+        ],
+    )
+    spec = Spec(anchors=[anchor], knots=[], ties=[])
+
+    result = generate_all_dml(spec, "postgres")
+
+    # Both should exist
+    assert "CU_Customer_load_northwind.sql" in result
+    assert "CU_Customer_load_sap.sql" in result
+
+    # In dict order, northwind (priority 1) should come before sap (priority 5)
+    # Dict insertion order is preserved in Python 3.7+
+    keys = list(result.keys())
+    nw_idx = keys.index("CU_Customer_load_northwind.sql")
+    sap_idx = keys.index("CU_Customer_load_sap.sql")
+    assert nw_idx < sap_idx
+
+
+def test_generate_all_dml_multi_source_deterministic():
+    """Generating multi-source DML twice produces byte-identical output."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[
+            StagingMapping(
+                system="Northwind",
+                tenant="US",
+                table="stg_nw_customers",
+                natural_key_columns=["CustomerID"],
+                columns=[StagingColumn(name="CustomerID", type="varchar(10)")],
+                column_mappings={},
+                priority=1,
+            ),
+            StagingMapping(
+                system="SAP",
+                tenant="EU",
+                table="stg_sap_customers",
+                natural_key_columns=["KUNNR"],
+                columns=[StagingColumn(name="KUNNR", type="varchar(10)")],
+                column_mappings={},
+                priority=2,
+            ),
+        ],
+    )
+    spec = Spec(anchors=[anchor], knots=[], ties=[])
+
+    # Generate twice
+    result1 = generate_all_dml(spec, "postgres")
+    result2 = generate_all_dml(spec, "postgres")
+
+    # Keys should be identical
+    assert list(result1.keys()) == list(result2.keys())
+
+    # Values should be byte-identical
+    for key in result1:
+        assert result1[key] == result2[key]
+
+
+def test_generate_all_dml_single_source_unchanged():
+    """Single-source anchor behavior unchanged (no regression)."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[
+            StagingMapping(
+                system="ERP",
+                tenant="ACME",
+                table="stg_customers",
+                natural_key_columns=["customer_id"],
+                columns=[StagingColumn(name="customer_id", type="varchar(10)")],
+                column_mappings={},
+            )
+        ],
+    )
+    spec = Spec(anchors=[anchor], knots=[], ties=[])
+
+    result = generate_all_dml(spec, "postgres")
+
+    # Should have single-source file WITHOUT source suffix
+    assert "CU_Customer_load.sql" in result
+    # Should NOT have multi-source suffixed files
+    assert "CU_Customer_load_erp.sql" not in result

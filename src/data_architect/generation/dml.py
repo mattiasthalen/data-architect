@@ -5,6 +5,7 @@
 import sqlglot as sg
 import sqlglot.expressions as sge
 
+from data_architect.generation.conflict import resolve_staging_order
 from data_architect.generation.naming import (
     anchor_table_name,
     attribute_table_name,
@@ -15,15 +16,20 @@ from data_architect.generation.naming import (
 from data_architect.models.anchor import Anchor, Attribute
 from data_architect.models.knot import Knot
 from data_architect.models.spec import Spec
+from data_architect.models.staging import StagingMapping
 from data_architect.models.tie import Tie
 
 
-def build_anchor_merge(anchor: Anchor, dialect: str) -> sge.Expression:
+def build_anchor_merge(
+    anchor: Anchor, dialect: str, mapping: StagingMapping | None = None
+) -> sge.Expression:
     """Build MERGE/UPSERT statement for anchor loading.
 
     Args:
         anchor: Anchor model instance
         dialect: Target SQL dialect (e.g., "postgres", "snowflake", "tsql")
+        mapping: Optional specific staging mapping. If None, uses first
+            mapping or default.
 
     Returns:
         SQLGlot AST node for MERGE or INSERT...ON CONFLICT
@@ -31,8 +37,10 @@ def build_anchor_merge(anchor: Anchor, dialect: str) -> sge.Expression:
     target_table = anchor_table_name(anchor)
     identity_col = f"{anchor.mnemonic}_ID"
 
-    # Get staging table name (use first mapping if exists, else derive default)
-    if anchor.staging_mappings:
+    # Get staging table name from mapping parameter, first mapping, or default
+    if mapping is not None:
+        source_table = staging_table_name(mapping)
+    elif anchor.staging_mappings:
         source_table = staging_table_name(anchor.staging_mappings[0])
     else:
         source_table = f"stg_{target_table}"
@@ -80,7 +88,10 @@ WHEN NOT MATCHED THEN
 
 
 def build_attribute_merge(
-    anchor: Anchor, attribute: Attribute, dialect: str
+    anchor: Anchor,
+    attribute: Attribute,
+    dialect: str,
+    mapping: StagingMapping | None = None,
 ) -> sge.Expression:
     """Build MERGE/UPSERT statement for attribute loading.
 
@@ -88,6 +99,8 @@ def build_attribute_merge(
         anchor: Parent anchor model instance
         attribute: Attribute model instance
         dialect: Target SQL dialect (e.g., "postgres", "snowflake", "tsql")
+        mapping: Optional specific staging mapping. If None, uses first
+            mapping or default.
 
     Returns:
         SQLGlot AST node for MERGE or INSERT...ON CONFLICT
@@ -95,8 +108,10 @@ def build_attribute_merge(
     target_table = attribute_table_name(anchor, attribute)
     anchor_fk = f"{anchor.mnemonic}_ID"
 
-    # Get staging table name
-    if anchor.staging_mappings:
+    # Get staging table name from mapping parameter, first mapping, or default
+    if mapping is not None:
+        source_table = staging_table_name(mapping)
+    elif anchor.staging_mappings:
         source_table = staging_table_name(anchor.staging_mappings[0])
     else:
         source_table = f"stg_{anchor_table_name(anchor)}"
@@ -455,16 +470,37 @@ def generate_all_dml(spec: Spec, dialect: str) -> dict[str, str]:
 
     # 2. Anchors (sorted by mnemonic)
     for anchor in sorted(spec.anchors, key=lambda a: a.mnemonic):
-        # Anchor table load
-        ast = build_anchor_merge(anchor, dialect)
-        filename = f"{anchor_table_name(anchor)}_load.sql"
-        output[filename] = ast.sql(dialect=dialect, pretty=True)
+        # Handle multi-source anchors (STG-05)
+        if anchor.staging_mappings and len(anchor.staging_mappings) > 1:
+            # Multi-source: Generate one MERGE per source in priority order
+            sorted_mappings = resolve_staging_order(anchor.staging_mappings)
+            for mapping in sorted_mappings:
+                # Anchor load for this source
+                ast = build_anchor_merge(anchor, dialect, mapping)
+                system_suffix = mapping.system.lower()
+                filename = f"{anchor_table_name(anchor)}_load_{system_suffix}.sql"
+                output[filename] = ast.sql(dialect=dialect, pretty=True)
 
-        # Attribute table loads (sorted by mnemonic)
-        for attr in sorted(anchor.attributes, key=lambda at: at.mnemonic):
-            ast = build_attribute_merge(anchor, attr, dialect)
-            filename = f"{attribute_table_name(anchor, attr)}_load.sql"
+                # Attribute loads for this source (sorted by mnemonic)
+                for attr in sorted(anchor.attributes, key=lambda at: at.mnemonic):
+                    ast = build_attribute_merge(anchor, attr, dialect, mapping)
+                    attr_table = attribute_table_name(anchor, attr)
+                    filename = f"{attr_table}_load_{system_suffix}.sql"
+                    output[filename] = ast.sql(dialect=dialect, pretty=True)
+        else:
+            # Single-source (0 or 1 mapping): Original behavior
+            single_mapping = (
+                anchor.staging_mappings[0] if anchor.staging_mappings else None
+            )
+            ast = build_anchor_merge(anchor, dialect, single_mapping)
+            filename = f"{anchor_table_name(anchor)}_load.sql"
             output[filename] = ast.sql(dialect=dialect, pretty=True)
+
+            # Attribute table loads (sorted by mnemonic)
+            for attr in sorted(anchor.attributes, key=lambda at: at.mnemonic):
+                ast = build_attribute_merge(anchor, attr, dialect, single_mapping)
+                filename = f"{attribute_table_name(anchor, attr)}_load.sql"
+                output[filename] = ast.sql(dialect=dialect, pretty=True)
 
     # 3. Ties (sorted by table name for determinism)
     sorted_ties = sorted(spec.ties, key=lambda t: tie_table_name(t))
