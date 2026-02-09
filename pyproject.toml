@@ -81,6 +81,7 @@ ignore = [
 "tests/**" = ["S101", "ANN", "ARG"]
 "src/data_architect/cli.py" = ["B008"]
 "src/data_architect/templates.py" = ["E501"]  # Template strings contain markdown prose
+"src/data_architect/dab_init.py" = ["E501"]  # Template comment strings contain documentation prose
 "src/data_architect/models/common.py" = ["ANN401"]  # Helper functions need Any for flexibility
 "src/data_architect/models/spec.py" = ["TC001"]  # Pydantic needs runtime imports for model_validate
 "src/data_architect/validation/loader.py" = ["TC001", "TC003", "ANN401"]  # Runtime YAML loading needs Path, Spec, Any for recursive traversal

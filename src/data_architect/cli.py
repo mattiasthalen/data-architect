@@ -6,11 +6,14 @@ from pathlib import Path
 
 import typer
 
+from data_architect.dab_init import generate_spec_template
 from data_architect.scaffold import ScaffoldAction, scaffold
 
 app = typer.Typer(
     help="Data Architect: Scaffold OpenCode AI agents for data warehouse design.",
 )
+
+dab_app = typer.Typer(help="DAB specification management.")
 
 _SYMBOLS: dict[ScaffoldAction, str] = {
     ScaffoldAction.CREATED: "\u2713",
@@ -28,6 +31,9 @@ _STYLES: dict[ScaffoldAction, str] = {
 @app.callback()
 def _callback() -> None:
     """Data Architect: Scaffold OpenCode AI agents for data warehouse design."""
+
+
+app.add_typer(dab_app, name="dab")
 
 
 @app.command()
@@ -82,3 +88,38 @@ def init(
         if skipped:
             parts.append(f"{skipped} skipped")
         typer.echo(f"\nScaffolded: {', '.join(parts)}")
+
+
+@dab_app.command(name="init")
+def dab_init(
+    output: Path = typer.Argument(
+        Path("spec.yaml"),
+        help="Output file path (default: spec.yaml)",
+    ),
+    overwrite: bool = typer.Option(
+        False,
+        "--overwrite",
+        help="Overwrite existing file",
+    ),
+) -> None:
+    """Scaffold a blank YAML spec template with inline documentation."""
+    # Check if file exists and overwrite not set
+    if output.exists() and not overwrite:
+        typer.echo(
+            typer.style(
+                f"Error: {output} already exists (use --overwrite to replace)",
+                fg="red",
+            )
+        )
+        raise typer.Exit(code=1)
+
+    # Generate template
+    template_content = generate_spec_template()
+
+    # Write to output file
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(template_content)
+
+    # Success message
+    symbol = "\u2713"
+    typer.echo(typer.style(f"{symbol} {output}", fg="green"))

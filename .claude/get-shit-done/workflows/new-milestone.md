@@ -74,19 +74,29 @@ Delete MILESTONE-CONTEXT.md if exists (consumed).
 node ./.claude/get-shit-done/bin/gsd-tools.js commit "docs: start milestone v[X.Y] [Name]" --files .planning/PROJECT.md .planning/STATE.md
 ```
 
-## 7. Resolve Model Profile
+## 7. Load Context and Resolve Models
 
 ```bash
-RESEARCHER_MODEL=$(node ./.claude/get-shit-done/bin/gsd-tools.js resolve-model gsd-project-researcher --raw)
-SYNTHESIZER_MODEL=$(node ./.claude/get-shit-done/bin/gsd-tools.js resolve-model gsd-research-synthesizer --raw)
-ROADMAPPER_MODEL=$(node ./.claude/get-shit-done/bin/gsd-tools.js resolve-model gsd-roadmapper --raw)
+INIT=$(node ./.claude/get-shit-done/bin/gsd-tools.js init new-milestone)
 ```
+
+Extract from init JSON: `researcher_model`, `synthesizer_model`, `roadmapper_model`, `commit_docs`, `research_enabled`, `current_milestone`, `project_exists`, `roadmap_exists`.
 
 ## 8. Research Decision
 
 AskUserQuestion: "Research the domain ecosystem for new features before defining requirements?"
 - "Research first (Recommended)" — Discover patterns, features, architecture for NEW capabilities
 - "Skip research" — Go straight to requirements
+
+**Persist choice to config** (so future `/gsd:plan-phase` honors it):
+
+```bash
+# If "Research first": persist true
+node ./.claude/get-shit-done/bin/gsd-tools.js config-set workflow.research true
+
+# If "Skip research": persist false
+node ./.claude/get-shit-done/bin/gsd-tools.js config-set workflow.research false
+```
 
 **If "Research first":**
 

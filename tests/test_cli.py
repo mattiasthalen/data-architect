@@ -148,3 +148,58 @@ def test_init_file_content_matches_templates(tmp_path):
     for relative_path, expected in TEMPLATES.items():
         full = tmp_path / relative_path
         assert full.read_text() == expected, f"{relative_path} content mismatch"
+
+
+def test_dab_init_creates_spec_file(tmp_path, monkeypatch):
+    """architect dab init creates spec.yaml in current directory."""
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(app, ["dab", "init"])
+    assert result.exit_code == 0
+    assert (tmp_path / "spec.yaml").exists()
+    assert "\u2713" in result.output
+    assert "spec.yaml" in result.output
+
+
+def test_dab_init_custom_output(tmp_path):
+    """architect dab init custom.yaml creates custom.yaml."""
+    output_path = tmp_path / "custom.yaml"
+    result = runner.invoke(app, ["dab", "init", str(output_path)])
+    assert result.exit_code == 0
+    assert output_path.exists()
+    assert "\u2713" in result.output
+
+
+def test_dab_init_no_overwrite(tmp_path):
+    """Running dab init twice without --overwrite fails on second run."""
+    output_path = tmp_path / "spec.yaml"
+
+    # First run succeeds
+    result1 = runner.invoke(app, ["dab", "init", str(output_path)])
+    assert result1.exit_code == 0
+
+    # Second run without --overwrite should fail
+    result2 = runner.invoke(app, ["dab", "init", str(output_path)])
+    assert result2.exit_code == 1
+    assert "already exists" in result2.output
+
+
+def test_dab_init_overwrite_flag(tmp_path):
+    """Running dab init twice with --overwrite succeeds both times."""
+    output_path = tmp_path / "spec.yaml"
+
+    # First run
+    result1 = runner.invoke(app, ["dab", "init", str(output_path)])
+    assert result1.exit_code == 0
+
+    # Second run with --overwrite should succeed
+    result2 = runner.invoke(app, ["dab", "init", str(output_path), "--overwrite"])
+    assert result2.exit_code == 0
+    assert "\u2713" in result2.output
+
+
+def test_dab_init_help():
+    """architect dab init --help shows help text."""
+    result = runner.invoke(app, ["dab", "init", "--help"])
+    assert result.exit_code == 0
+    assert "Scaffold a blank YAML spec template" in result.output
+    assert "--overwrite" in result.output
