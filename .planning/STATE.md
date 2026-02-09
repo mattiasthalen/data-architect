@@ -5,14 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** The DAB layer must produce a correct, methodology-compliant Anchor Model through genuine agent debate -- not just template generation.
-**Current focus:** v0.3.0 DAB Generation — defining requirements
+**Current focus:** v0.3.0 DAB Generation -- Phase 6 (YAML Schema Foundation and Spec Validation)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-09 — Milestone v0.3.0 started
+Phase: 6 of 10 (YAML Schema Foundation and Spec Validation)
+Plan: 0 of 3 in current phase
+Status: Ready to plan — `/gsd:plan-phase 6`
+Last activity: 2026-02-09 -- Requirements updated (33 reqs: +GEN-10 staging DDL, +KEY-05 null safety)
+
+Progress: [##########..........] 45% (10/22 plans across all milestones)
 
 ## Performance Metrics
 
@@ -37,6 +39,14 @@ Last activity: 2026-02-09 — Milestone v0.3.0 started
 
 All decisions logged in PROJECT.md Key Decisions table with outcomes.
 
+Recent decisions affecting current work:
+- SQLGlot ASTs for SQL generation (NOT Jinja2 per-dialect templates)
+- Bitemporality: `changed_at` (valid time) + `recorded_at` (transaction time)
+- Keyset identity: `entity@system~tenant|natural_key` with escape sequences
+- Keyset null safety: NULL natural key → entire keyset NULL (not `entity@system~tenant|`)
+- `dab generate` also produces staging table DDL (not just anchor tables)
+- Bruin format: `--format bruin` (SQL with frontmatter) and `--format raw` (plain SQL)
+
 ### Pending Todos
 
 None.
@@ -48,9 +58,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: v0.2.0 milestone complete
-Resume file: .planning/MILESTONES.md
+Stopped at: v0.3.0 roadmap created, ready to plan Phase 6
+Resume file: .planning/ROADMAP.md
 
 ---
 *State initialized: 2026-02-07*
-*Last updated: 2026-02-09 — v0.3.0 milestone started*
+*Last updated: 2026-02-09 -- Requirements updated with staging DDL + keyset null safety*
