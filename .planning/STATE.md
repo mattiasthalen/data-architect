@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 8 of 10 (Keyset Identity and Staging Mappings)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-09 -- Completed 08-01-PLAN.md (KeysetIdentity module with parse/format)
+Last activity: 2026-02-09 -- Completed 08-02-PLAN.md (StagingMapping models and keyset SQL builder)
 
-Progress: [##########███████...] 77% (17/22 plans across all milestones)
+Progress: [##########████████..] 82% (18/22 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
-- Average duration: 11.9 min
-- Total execution time: 3.23 hours
+- Total plans completed: 18
+- Average duration: 12.3 min
+- Total execution time: 3.70 hours
 
 **By Phase:**
 
@@ -34,7 +34,7 @@ Progress: [##########███████...] 77% (17/22 plans across all miles
 | 5. Pre-commit Framework Migration | 1/1 | 2 min | 2.0 min |
 | 6. YAML Schema Foundation | 3/3 | 125 min | 41.7 min |
 | 7. SQL Generation Engine | 3/3 | 28.8 min | 9.6 min |
-| 8. Keyset Identity and Staging Mappings | 1/3 | 18 min | 18.0 min |
+| 8. Keyset Identity and Staging Mappings | 2/3 | 25.8 min | 12.9 min |
 
 ## Accumulated Context
 
@@ -64,6 +64,10 @@ Recent decisions affecting current work:
 - CLI validation flow: file exists → spec validates → generate → format → write → summarize (07-03)
 - Left-to-right pairing algorithm for keyset parsing (08-01): simple, consistent, works for non-ambiguous cases
 - Property-based test filtering for ambiguous delimiter cases (08-01): focus on practical use cases
+- StagingMapping Pydantic model with model_rebuild() for circular imports (08-02): import after class definitions
+- Separate columns/column_mappings in StagingMapping (08-02): columns for DDL, column_mappings for DML lineage
+- Keyset prefix escaped at generation time, natural key at runtime (08-02): nested REPLACE in SQL
+- Composite natural key NULL propagation (08-02): CASE WHEN any component NULL THEN NULL
 
 ### Pending Todos
 
@@ -76,9 +80,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 8, Plan 1 complete (KeysetIdentity module)
-Resume file: .planning/phases/08-keyset-identity-and-staging-mappings/08-01-SUMMARY.md
+Stopped at: Phase 8, Plan 2 complete (StagingMapping models and keyset SQL builder)
+Resume file: .planning/phases/08-keyset-identity-and-staging-mappings/08-02-SUMMARY.md
 
 ---
 *State initialized: 2026-02-07*
-*Last updated: 2026-02-09 -- Completed 08-01 (KeysetIdentity module with parse/format) - Phase 8 in progress*
+*Last updated: 2026-02-09 -- Completed 08-02 (StagingMapping models and keyset SQL builder) - Phase 8 in progress*
