@@ -1,0 +1,3 @@
+anchor:
+  - descriptor: Actor
+    identity: int

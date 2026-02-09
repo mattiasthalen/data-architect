@@ -1,0 +1,30 @@
+knot:
+  - mnemonic: GEN
+    descriptor: Gender
+    identity: bit
+    dataRange: varchar(42)
+
+anchor:
+  - mnemonic: AC
+    descriptor: Actor
+    identity: int
+    attribute:
+      - mnemonic: NAM
+        descriptor: Name
+        timeRange: datetime
+        dataRange: varchar(42)
+      - mnemonic: GEN
+        descriptor: Gender
+        knotRange: GEN
+  - mnemonic: PN
+    descriptor: Person
+    identity: int
+
+tie:
+  - role:
+      - role: subset
+        type: AC
+        identifier: false
+      - role: of
+        type: PN
+        identifier: false

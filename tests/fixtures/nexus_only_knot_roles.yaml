@@ -1,0 +1,14 @@
+knot:
+  - mnemonic: ETY
+    descriptor: EventType
+    identity: tinyint
+    dataRange: varchar(42)
+
+nexus:
+  - mnemonic: EV
+    descriptor: Event
+    identity: int
+    role:
+      - role: of
+        type: ETY
+        identifier: false

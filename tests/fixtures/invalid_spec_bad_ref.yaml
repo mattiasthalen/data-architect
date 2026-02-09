@@ -1,0 +1,8 @@
+anchor:
+  - mnemonic: AC
+    descriptor: Actor
+    identity: int
+    attribute:
+      - mnemonic: GEN
+        descriptor: Gender
+        knotRange: NONEXISTENT

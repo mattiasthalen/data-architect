@@ -1,0 +1,17 @@
+anchor:
+  - mnemonic: ST
+    descriptor: Stage
+    identity: int
+
+nexus:
+  - mnemonic: EV
+    descriptor: Event
+    identity: int
+    attribute:
+      - mnemonic: TYP
+        descriptor: Type
+        knotRange: NONEXISTENT
+    role:
+      - role: at
+        type: ST
+        identifier: false

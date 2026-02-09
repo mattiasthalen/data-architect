@@ -1,0 +1,7 @@
+anchor:
+  - mnemonic: AC
+    descriptor: Actor
+    identity: int
+  - mnemonic: AC
+    descriptor: AnotherActor
+    identity: int

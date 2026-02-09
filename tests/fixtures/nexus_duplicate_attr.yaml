@@ -1,0 +1,20 @@
+anchor:
+  - mnemonic: ST
+    descriptor: Stage
+    identity: int
+
+nexus:
+  - mnemonic: EV
+    descriptor: Event
+    identity: int
+    attribute:
+      - mnemonic: DAT
+        descriptor: Date
+        dataRange: datetime
+      - mnemonic: DAT
+        descriptor: AnotherDate
+        dataRange: datetime
+    role:
+      - role: at
+        type: ST
+        identifier: false

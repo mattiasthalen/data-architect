@@ -83,6 +83,9 @@ ignore = [
 "src/data_architect/templates.py" = ["E501"]  # Template strings contain markdown prose
 "src/data_architect/models/common.py" = ["ANN401"]  # Helper functions need Any for flexibility
 "src/data_architect/models/spec.py" = ["TC001"]  # Pydantic needs runtime imports for model_validate
+"src/data_architect/validation/loader.py" = ["TC001", "TC003", "ANN401"]  # Runtime YAML loading needs Path, Spec, Any for recursive traversal
+"src/data_architect/validation/errors.py" = ["TC001"]  # ValidationResult needs runtime access to Spec type
+"src/data_architect/validation/referential.py" = ["TC001"]  # Function signature needs Spec type at runtime
 
 [tool.mypy]
 python_version = "3.13"

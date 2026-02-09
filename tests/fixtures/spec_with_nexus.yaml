@@ -1,0 +1,29 @@
+knot:
+  - mnemonic: ETY
+    descriptor: EventType
+    identity: tinyint
+    dataRange: varchar(42)
+
+anchor:
+  - mnemonic: ST
+    descriptor: Stage
+    identity: int
+  - mnemonic: PR
+    descriptor: Program
+    identity: int
+
+nexus:
+  - mnemonic: EV
+    descriptor: Event
+    identity: int
+    attribute:
+      - mnemonic: DAT
+        descriptor: Date
+        dataRange: datetime
+    role:
+      - role: wasHeldAt
+        type: ST
+        identifier: false
+      - role: of
+        type: ETY
+        identifier: false

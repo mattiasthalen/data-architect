@@ -1,0 +1,13 @@
+anchor:
+  - mnemonic: ST
+    descriptor: Stage
+    identity: int
+
+nexus:
+  - mnemonic: EV
+    descriptor: Event
+    identity: int
+    role:
+      - role: at
+        type: NONEXISTENT
+        identifier: false
