@@ -18,6 +18,7 @@ classifiers = [
 dependencies = [
     "pydantic>=2.10.0",
     "ruamel-yaml>=0.18.0",
+    "sqlglot>=28.10.0",
     "typer>=0.15.0",
 ]
 
