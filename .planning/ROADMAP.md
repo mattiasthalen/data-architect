@@ -60,9 +60,9 @@ See: `.planning/milestones/v0.2.0-ROADMAP.md` for full details.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 06-01: Pydantic spec models and YAML schema (SPEC-01, SPEC-05, SPEC-06)
-- [ ] 06-02: Spec validation engine with line numbers (SPEC-03, SPEC-04, SPEC-07)
-- [ ] 06-03: CLI `dab init` scaffold command (SPEC-02)
+- [ ] 06-01-PLAN.md -- Pydantic frozen models with three-layer schema for anchor.xsd superset (SPEC-01, SPEC-05, SPEC-06)
+- [ ] 06-02-PLAN.md -- Spec validation engine with line numbers and referential integrity (SPEC-03, SPEC-04, SPEC-07)
+- [ ] 06-03-PLAN.md -- CLI `dab init` scaffold command with commented YAML template (SPEC-02)
 
 ### Phase 7: SQL Generation Engine
 **Goal**: Users can generate correct, idempotent, bitemporal SQL for any supported dialect from a valid YAML spec
@@ -141,7 +141,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 3. Agent Definitions + OpenCode Integration | v0.1.0 | 2/2 | Complete | 2026-02-08 |
 | 4. Agent Quality + Modeling Workflows | v0.1.0 | 3/3 | Complete | 2026-02-08 |
 | 5. Pre-commit Framework Migration | v0.2.0 | 1/1 | Complete | 2026-02-08 |
-| 6. YAML Schema Foundation and Spec Validation | v0.3.0 | 0/3 | Not started | - |
+| 6. YAML Schema Foundation and Spec Validation | v0.3.0 | 0/3 | Planned | - |
 | 7. SQL Generation Engine | v0.3.0 | 0/3 | Not started | - |
 | 8. Keyset Identity and Staging Mappings | v0.3.0 | 0/3 | Not started | - |
 | 9. XML Interoperability | v0.3.0 | 0/2 | Not started | - |
@@ -149,4 +149,4 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-09 -- v0.3.0 phases 6-10 added*
+*Last updated: 2026-02-09 -- Phase 6 plans created*
