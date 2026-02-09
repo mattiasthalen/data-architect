@@ -15,6 +15,11 @@ from data_architect.generation.dml import (
     build_tie_merge,
     generate_all_dml,
 )
+from data_architect.generation.formatters import (
+    format_bruin,
+    format_raw,
+    write_output,
+)
 
 __all__ = [
     "build_anchor_merge",
@@ -26,6 +31,9 @@ __all__ = [
     "build_staging_table",
     "build_tie_merge",
     "build_tie_table",
+    "format_bruin",
+    "format_raw",
     "generate_all_ddl",
     "generate_all_dml",
+    "write_output",
 ]
