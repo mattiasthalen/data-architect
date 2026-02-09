@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Python CLI tool that scaffolds AI agent definitions into a project directory and generates deterministic data warehouse scripts. `architect init` places OpenCode-compatible agent definitions into `.opencode/` — a team of data professionals (Data Architect, System Analyst, Business Analyst, Data Engineer, Analytics Engineer, Veteran Reviewer) that guide users through designing a DAB layer using Anchor Modeling. `architect generate` produces deterministic DAS and DAR scripts from the specs those agents create. Users drive the agents manually through OpenCode.
+A Python CLI tool that scaffolds AI agent definitions and generates deterministic data warehouse scripts from Anchor Modeling specifications. `architect init` places OpenCode-compatible agent definitions into `.opencode/` — a team of data professionals that guide users through designing a DAB layer using Anchor Modeling. `architect dab` commands manage the DAB specification (a YAML superset of the official Anchor Modeling XML schema) and generate idempotent SQL loading scripts. Users can fill the spec manually, use agents to produce it, or import from the official Anchor Modeler tool.
 
 ## Core Value
 
@@ -29,13 +29,27 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 
 ### Active
 
-(None — define next milestone requirements with `/gsd:new-milestone`)
+See REQUIREMENTS.md for detailed v0.3.0 requirements.
 
-### Deferred (v0.3.0+)
+**Current Milestone: v0.3.0 DAB Generation**
+
+**Goal:** Define a YAML specification format (superset of official Anchor XML) and generate idempotent DAB loading scripts from it.
+
+**Target features:**
+- YAML spec format extending official anchor.xsd with staging table mappings and keyset identity
+- `architect dab init` scaffolds blank spec template
+- `architect dab generate` produces idempotent SQL per entity (Bruin assets or raw SQL)
+- `architect dab import` converts official Anchor XML → YAML
+- `architect dab export` converts YAML → official Anchor XML
+- Keyset identity scheme: `entity@system~tenant|natural_key`
+- Multi-source support: same anchor fed by multiple staging tables/systems
+- Northwind OData as reference example and test case
+- Database-agnostic SQL generation (dialect-aware)
+
+### Deferred (v0.4.0+)
 
 - [ ] `architect generate` produces DAS scripts from source schemas (deterministic)
 - [ ] `architect generate` produces DAR scripts from DAB output (deterministic)
-- [ ] Demo scenario validation (e-commerce or similar)
 
 ### Out of Scope
 
@@ -44,6 +58,8 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 - `architect` CLI orchestrating agents — agents are driven manually through OpenCode
 - Claude Code skill — pivoted to OpenCode agents + Python CLI
 - DAS/DAR agent debate — these layers are deterministic transforms, not probabilistic
+- DAS generation — deferred to v0.4.0+
+- DAR generation — deferred to v0.4.0+
 
 ## Context
 
@@ -63,10 +79,11 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 - **CLP**: Conceptual → Logical → Physical modeling. Applies only to DAB (probabilistic, needs AI reasoning). DAS and DAR are deterministic transformations.
 
 **Architecture Pattern:**
-- **CLI tool** (`architect`): Python package, pip-installable. Two commands: `init` (scaffold) and `generate` (deterministic code gen).
-- **OpenCode agents** (`.opencode/`): Agent definitions scaffolded by `init`. User drives them manually in OpenCode. Agents handle creative/analytical work — understanding the business, debating models, checking methodology.
-- **Specs as contract**: YAML/JSON specs produced by agent debate are the bridge between probabilistic (agents) and deterministic (generators).
-- **Deterministic generators**: `architect generate` transforms specs → DAS scripts (from source schemas) and DAR scripts (from DAB output). No AI involved.
+- **CLI tool** (`architect`): Python package, pip-installable. Commands: `init` (scaffold agents), `dab init` (scaffold spec template), `dab generate` (spec → SQL), `dab import` (XML → YAML), `dab export` (YAML → XML).
+- **OpenCode agents** (`.opencode/`): Agent definitions scaffolded by `init`. User drives them manually in OpenCode. Agents handle creative/analytical work — understanding the business, debating models, checking methodology. Agents optionally produce a filled-out DAB spec.
+- **DAB YAML spec**: Superset of official Anchor Modeling XML schema. Extends with staging table mappings (column-level, multi-source) and keyset identity scheme (`entity@system~tenant|natural_key`). Interoperable with official Anchor Modeler via import/export.
+- **Deterministic generators**: `architect dab generate` transforms YAML spec → idempotent SQL loading scripts per entity. v1 output: Bruin assets or raw SQL. Database-agnostic (dialect-aware).
+- **Keyset identity**: All IDs prefixed `anchor@system~tenant|natural_key` (e.g., `order@northwind~eu|10248`). Encodes entity type, source system, tenant, and source natural key. Enables multi-source feeding of same anchor.
 
 **Agent Team Roles:**
 - **Data Architect**: Entry point and design authority. Gathers business context and source docs from filesystem. Orchestrates debate, synthesizes recommendations, enforces naming standards and consistency.
@@ -91,11 +108,15 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 **User Flow:**
 1. `pip install data-architect`
 2. `architect init` → agent definitions + skills appear in `.opencode/`
-3. Open OpenCode, invoke `/da:start` (or other `/da:*` commands)
-4. Describe business, point to source docs, state business questions
-5. Agents debate through CLP, user makes final calls
-6. Specs land in cwd as YAML/JSON
-7. `architect generate` → DAS and DAR scripts produced
+3. `architect dab init` → blank YAML spec template scaffolded
+4. Fill spec manually OR use agents (`/da:start` in OpenCode) to produce filled spec
+5. `architect dab generate` → idempotent SQL loading scripts per entity
+6. Optionally: `architect dab export` → official Anchor XML for use in Anchor Modeler tool
+7. Optionally: `architect dab import` → bring XML from Anchor Modeler back into YAML
+
+**Reference data:**
+- Official Anchor Modeling repo cloned to `.references/anchor/` (schema: `anchor.xsd`, example: `example.xml`)
+- Northwind OData metadata: `https://demodata.grapecity.com/northwind/odata/v1/$metadata`
 
 **OpenCode Integration:**
 - Agents live in `.opencode/agents/` as Markdown with YAML frontmatter
@@ -144,6 +165,11 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 | language: system for make-check hook | Make check needs full project environment access | ✓ Good — v0.2.0 |
 | Skills route through data-architect agent | Single orchestration point, consistent entry | ✓ Good — v0.1.0 |
 | Bounded iteration debate (5 rounds max) | Prevents infinite loops, forces convergence or user escalation | ✓ Good — v0.1.0 |
+| DAB before DAS/DAR | DAB is the core methodology layer — prove the spec format and generation before mechanical layers | — Pending |
+| YAML superset of official Anchor XML | Interoperability with official tooling while extending for staging/keyset needs | — Pending |
+| Keyset identity over surrogate integers | Encodes source provenance (system + tenant) in the key itself, enables multi-source merging | — Pending |
+| Bruin as v1 output format | Modern data pipeline tool with materialization strategies matching anchor patterns (merge, SCD2) | — Pending |
+| Northwind as reference example | Well-known schema, OData metadata available, good mix of entity types and relationships | — Pending |
 
 ---
-*Last updated: 2026-02-09 after v0.2.0 milestone*
+*Last updated: 2026-02-09 after v0.3.0 milestone start*
