@@ -1,311 +1,334 @@
-# Feature Research: Python CLI Scaffolding + OpenCode Agent Definitions
+# Feature Research: DAB Specification Management and Anchor Modeling Code Generation
 
-**Domain:** CLI scaffolding tools, AI agent definition/scaffolding, data warehouse design tooling
-**Researched:** 2026-02-07
-**Confidence:** HIGH (CLI scaffolding patterns well-established; OpenCode agent format documented; data warehouse tooling mature)
+**Domain:** DAB specification management, Anchor Modeling code generation, multi-dialect SQL generation
+**Researched:** 2026-02-09
+**Confidence:** MEDIUM (Anchor Modeling patterns well-established from official tools; YAML validation and SQL generation patterns mature; keyset identity and multi-source staging are novel extensions)
 
 ## Context
 
-This research covers features for `warehouse-architect`, a Python CLI with two commands:
-- `architect init` -- scaffolds OpenCode agent definitions into `.opencode/` in the current working directory
-- `architect generate` -- deterministic DAS/DAR script generation from YAML/JSON specs (milestone 2+)
+This research covers features for `architect dab` commands in v0.3.0:
+- `architect dab init` -- scaffold blank YAML spec template
+- `architect dab generate` -- YAML spec → idempotent SQL per entity (Bruin assets or raw SQL)
+- `architect dab import` -- official Anchor XML → YAML
+- `architect dab export` -- YAML → official Anchor XML (drops extensions)
 
-**Milestone 1 scope: `architect init` + agent definitions only.** No generators.
+**v0.3.0 scope: DAB generation only.** Agents (v0.1.0) optionally produce filled specs. Generators consume any valid spec (manual or agent-produced).
 
-The agents (Data Architect, System Analyst, Business Analyst, Data Engineer, Analytics Engineer, Veteran Reviewer) run in OpenCode and guide users through DAB layer design using Anchor Modeling methodology through CLP debate.
+The YAML spec is a **superset of official Anchor XML** (anchor.xsd). Extensions: staging table mappings (column-level, multi-source), keyset identity scheme (`entity@system~tenant|natural_key`). Interoperable with official Anchor Modeler via import/export.
 
 Research dimensions:
-1. CLI scaffolding tools (cookiecutter, copier, yeoman) -- expected UX patterns
-2. AI agent definition/scaffolding -- how tools set up agent configurations
-3. Data warehouse design tools -- what domain-specific features matter
-4. Code generation from specs -- standard patterns (deferred to milestone 2)
+1. Specification management patterns -- YAML validation, schema definition, error reporting
+2. Anchor Modeling code generation -- SQL patterns from official tooling (Sisula, directives)
+3. Multi-dialect SQL generation -- abstraction layers, template approaches
+4. Idempotent SQL patterns -- IF NOT EXISTS, CREATE OR REPLACE, safe re-runs
+5. Bruin asset integration -- asset format, materialization strategies
+6. Staging table mapping -- column-level, multi-source patterns
+7. Keyset identity management -- natural key encoding, provenance tracking
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these = users abandon the tool at first interaction.
+Features users assume exist. Missing these = product feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Zero-config init command** | Every CLI scaffolding tool (cookiecutter, copier, PyScaffold) works with a single command. `architect init` must create all files without questions. Users expect `pip install warehouse-architect && architect init` to produce a working setup. | LOW | No prompts needed for milestone 1. Sensible defaults only. Copier/cookiecutter ask questions; we should not -- our output is fixed (opinionated agent team), not templated. |
-| **Clear output showing what was created** | CLI UX guidelines (clig.dev) require confirming state changes. Users must see exactly which files were created and where. Scaffolding tools always list generated files. | LOW | Print each file path as it is created. Show a summary at the end. No silent file creation. |
-| **Idempotent / safe re-run** | Copier supports `copier update`. Users will accidentally run `init` twice. Must either skip existing files, warn, or offer `--force` flag. Running `init` in a directory with existing `.opencode/` must not silently destroy customizations. | LOW | Default: skip existing with warning. `--force` flag to overwrite. This is table stakes for any scaffolding tool. |
-| **Valid OpenCode agent format** | Agents must conform to OpenCode's documented format: markdown files with YAML frontmatter (description, model, tools, permission, temperature, steps, etc.) in `.opencode/agents/`. Invalid format = agents do not load = tool is broken. | MEDIUM | OpenCode validates frontmatter fields. Must match the spec exactly: `description` (required), `model`, `tools`, `permission`, `temperature`, `top_p`, `steps`, `hidden`, `color`, `disable`. Markdown body is the system prompt. |
-| **Helpful error messages** | CLI best practices: catch errors, rewrite for humans, suggest next steps. "Command not found" or cryptic Python tracebacks are unacceptable. | LOW | Handle: directory not writable, not a git repo (warning not error), OpenCode not installed (info not error), existing files conflict. |
-| **`--help` with examples** | Every CLI tool provides `--help`. Must show usage, what the command does, and an example invocation. Typer/Click generate this automatically from type hints and docstrings. | LOW | Typer gives this for free. Include description of what gets scaffolded and where. |
-| **Works without OpenCode installed** | The CLI scaffolds files. It does not need to run OpenCode. Users may install the CLI first, inspect files, then install OpenCode. The tool must not check for or require OpenCode at init time. | LOW | File creation only. No runtime dependency on OpenCode. |
-| **AGENTS.md / rules file** | OpenCode projects use `AGENTS.md` in the project root for project-level rules. Scaffolding should include this file with project context (ADSS methodology, Anchor Modeling rules, CLP workflow description) so agents have shared context. | MEDIUM | This is how OpenCode loads project-wide instructions. Without it, agents lack shared context about the methodology. Critical for coherent multi-agent behavior. |
-| **pip-installable with entry point** | Standard for Python CLI tools. `pip install warehouse-architect` then `architect` command is available. Users expect this to just work. PyScaffold, copier, cookiecutter all follow this pattern. | LOW | UV builds, pyproject.toml `[project.scripts]` entry point. Standard Python packaging. |
+| **Spec scaffold** (`dab init`) | Every code generator starts with "create new project" | LOW | Blank YAML template with schema structure. Follows proven `architect init` pattern from v0.1.0 |
+| **YAML spec validation** | Users expect immediate feedback on schema correctness before generation | MEDIUM | JSON Schema or custom validator against official anchor.xsd elements + extensions. Critical for preventing downstream SQL errors |
+| **SQL generation** (`dab generate`) | Core value -- spec exists to produce SQL | HIGH | Idempotent CREATE TABLE/VIEW per entity. Multi-dialect (PostgreSQL first, SQL Server/Snowflake after). Anchor conventions: surrogate keys, metadata columns, 6NF structure |
+| **Idempotent SQL output** | Re-running generator must be safe, not destructive | MEDIUM | IF NOT EXISTS, CREATE OR REPLACE patterns. Existing tables untouched. Additive-only schema evolution (Anchor convention) |
+| **Per-entity SQL files** | SQL organized by entity, not monolithic | LOW | One file per anchor + attributes + ties. Matches Bruin asset-per-table pattern. Easier to review/debug than 5000-line scripts |
+| **Deterministic output** | Same input always produces same SQL (git-friendly) | LOW | No timestamps, UUIDs, or randomness in generated code. Diffable output |
+| **Validation error messages with line numbers** | Fast error location in large specs | LOW | Parser reports `line 47: missing required field 'identity'`. Saves debugging time on 500+ line specs |
+| **Import from official Anchor XML** (`dab import`) | Users have existing models in Anchor Modeler tool | MEDIUM | Parse anchor.xsd-compliant XML → YAML. Lossless for standard elements. Warn on unsupported features |
+| **Export to official Anchor XML** (`dab export`) | Roundtrip to official tooling for visual modeling | MEDIUM | YAML → anchor.xsd-compliant XML. Drop extensions (staging mappings, keyset identity). Validate output against XSD |
+| **Multi-dialect SQL support** | Anchor Modeler supports 5+ dialects, users expect parity | HIGH | PostgreSQL, SQL Server, Snowflake at minimum. Oracle/Vertica deferred. Dialect parameter: `--dialect postgres` |
+| **Metadata columns auto-generated** | Audit trail without user specification | LOW | Every table gets `metadata_recorded_at`, `metadata_recorded_by`, `metadata_id`. Anchor convention for lineage |
+| **Anchor Modeling conventions enforced** | Users choose Anchor for methodology compliance | MEDIUM | Surrogate keys (auto-increment/sequence), 6NF structure (one attribute per table), historization (valid_from/valid_to), knot tables for shared values |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set the product apart. Not expected from a scaffolding tool, but provide real value.
+Features that set the product apart. Not required, but valuable.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Domain-expert agent personas** | Not generic "coding assistant" agents. Each agent has deep domain expertise: Data Architect knows Anchor Modeling rules, System Analyst understands source system patterns, Business Analyst thinks in business terms, Veteran Reviewer has seen every anti-pattern since Inmon. The prompt engineering IS the product. | HIGH | This is the core value. Agent prompts must encode genuine expertise, not surface-level role descriptions. Each agent needs: persona, expertise areas, debate style, decision criteria, methodology knowledge. Comparable tools (opencode-template) have generic roles; ours are data warehouse specialists. |
-| **Structured debate protocol in agent prompts** | Agents do not just answer questions -- they argue through CLP stages. System Analyst and Business Analyst take opposing positions. Data Architect synthesizes. Veteran Reviewer critiques. The debate protocol is encoded in agent system prompts, not in external orchestration code. | HIGH | This is unique. No existing OpenCode agent template encodes multi-agent debate protocols. The protocol must specify: when to invoke which agent, what each agent argues for/against, how disagreements surface, how the user decides. All through prompt engineering in the agent markdown files. |
-| **CLP workflow guidance embedded in agents** | Agents guide users through Conceptual -> Logical -> Physical progression. They refuse to jump to physical modeling prematurely. The workflow enforcement is in the prompts, not in code. | MEDIUM | Data Architect agent's system prompt must include CLP stage awareness, checkpoint criteria, and the discipline to enforce progression. This is methodology compliance through prompt design. |
-| **Anchor Modeling methodology encoded** | Agent prompts contain Anchor Modeling rules: what qualifies as an anchor vs attribute vs tie vs knot, when to use historization, 6NF normalization criteria, naming conventions. This domain knowledge is the competitive moat. | HIGH | Must study Roenbaeck's reference implementation and encode rules into Data Architect and Veteran Reviewer prompts. No other tool provides Anchor Modeling expertise through AI agents. |
-| **OpenCode skills for reusable capabilities** | Beyond agents, scaffold `.opencode/skills/` with reusable capabilities: YAML spec validation, naming convention checking, Mermaid diagram generation from specs. Skills are passive knowledge resources agents invoke on demand. | MEDIUM | OpenCode skills use `SKILL.md` files in `.opencode/skills/<name>/SKILL.md`. This gives agents access to structured capabilities without putting everything in the system prompt. Defers complexity from prompt to skill. |
-| **opencode.json project configuration** | Scaffold an `opencode.json` that configures the agent team: default agent (Data Architect), model assignments per agent, tool permissions, MCP server configuration. Pre-configured so the team works out of the box. | MEDIUM | OpenCode merges project config with global config. We can set: `default_agent`, per-agent `model` overrides, `permission` defaults, `instructions` references. Users can customize later. |
-| **Spec format bootstrapping** | Scaffold example YAML spec templates and JSON Schema for Anchor Model elements (anchors, attributes, ties, knots) so agents have a concrete target format when producing specs. Agents reference these schemas in their prompts. | MEDIUM | Creates `.warehouse/schemas/` or similar with the spec format. Agents know what format to produce output in. Without this, each agent invents its own output format. |
-| **Dry-run mode (`--dry-run`)** | Show what would be created without creating it. Copier and cookiecutter both support this. Useful for reviewing scaffolded structure before committing. | LOW | Print file paths and sizes without writing. Low effort, high trust-building with cautious users. |
-| **Output directory override (`--dir`)** | Allow scaffolding into a directory other than cwd. Useful for monorepos or non-standard project structures. | LOW | Default: cwd. `--dir path/to/project` overrides. Standard pattern from copier (`-d` flag) and cookiecutter. |
+| **Keyset identity scheme** | Provenance tracking without lookup tables | HIGH | `entity@system~tenant|natural_key` encodes source in key itself. No "where did this come from?" queries. Enables multi-tenant, multi-source anchors. UNIQUE vs official Anchor (surrogate-only) |
+| **Multi-source staging mappings** | One anchor fed by multiple systems | HIGH | `staging_tables[]` array per anchor. Union semantics. Handles system-specific column names mapping to same attribute. UNIQUE vs official Anchor (ETL external) |
+| **Column-level staging mappings** | Explicit source → target lineage in spec | MEDIUM | `staging_tables[].columns[]` with `maps_to: anchor.attribute`. Clear data lineage. Generates SQL to map columns. Official Anchor separates ETL from modeling |
+| **YAML superset of Anchor XML** | Best of both: YAML ergonomics + XML interop | MEDIUM | Roundtrip import/export with official tooling. Extensions documented clearly. Official Anchor users can adopt incrementally |
+| **Bruin asset format output** | Modern data pipeline tool integration | MEDIUM | Generate `.sql` with Bruin YAML frontmatter (materialization: merge/view, columns, checks). Alternative to raw SQL. Materialization strategies match Anchor patterns (merge for historization, view for current state) |
+| **Northwind example spec** | Reference implementation for learning | LOW | Pre-filled YAML for Northwind OData. Users can `dab init --example northwind` to start with working spec. Validates all features |
+| **Dependency ordering** | SQL scripts ordered by foreign keys | MEDIUM | Knots → Anchors → Attributes → Ties. Knots first (referenced by attributes). Ties last (reference anchors). Prevents FK constraint errors on fresh database |
+| **Dry-run mode** | Preview SQL without writing files | LOW | `dab generate --dry-run` prints to stdout. Safe exploration of what would be generated |
+| **Diff-friendly SQL formatting** | Clean git diffs on spec changes | LOW | Consistent indentation, keyword casing, column ordering. One column per line in CREATE TABLE. Trailing commas optional per dialect |
 
-### Anti-Features (Deliberately NOT Building)
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that seem good but create problems. Critical to document so scope stays controlled.
+Features that seem good but create problems.
 
-| Anti-Feature | Why Requested | Why Problematic | Alternative |
-|--------------|---------------|-----------------|-------------|
-| **Interactive prompts during init** | Cookiecutter and copier ask questions (project name, options, etc.). Seems natural for scaffolding. | Our agent team is opinionated and fixed. There is nothing to ask. Prompts add friction to the critical first experience. The whole point is: run one command, get working agents. Questions imply customization that does not exist yet. | Zero-config init. Customization happens by editing generated files after scaffolding. Add prompts later only if users genuinely need to choose between options (e.g., target database platform). |
-| **Template engine / Jinja rendering** | Copier and cookiecutter use Jinja2 templates with variable substitution. Seems like the "right" way to scaffold. | Our files are not parameterized. Agent prompts are static markdown, not templates. Adding a template engine adds a dependency and complexity for zero benefit when files are not variable. | Write files directly from Python. If future milestones need parameterization (e.g., database dialect), add minimal templating then. YAGNI. |
-| **Agent orchestration in the CLI** | "The CLI should coordinate the agents, manage debate rounds, track state." | The CLI scaffolds files. OpenCode runs agents. The user drives agents manually in OpenCode. Putting orchestration in the CLI creates a parallel runtime that conflicts with OpenCode's agent system. Clear separation: CLI writes files, OpenCode runs agents. | Encode orchestration guidance in agent system prompts. The Data Architect agent's prompt tells it how to invoke other agents, manage debate flow, and track decisions. The orchestration IS the prompt. |
-| **Runtime dependency on OpenCode** | "Check if OpenCode is installed, validate version compatibility, auto-configure." | Creates a hard dependency on OpenCode's internals. OpenCode may change its CLI, installation method, or config format. The scaffolded files should work with any compatible version. | Scaffold files that conform to OpenCode's documented format. Mention OpenCode version compatibility in README/docs. Do not import or shell out to OpenCode. |
-| **Auto-updating scaffolded files** | Copier's killer feature is `copier update` -- pull upstream template changes into existing projects. | Premature for milestone 1. Users will customize agent prompts. Auto-update would overwrite customizations. Need a merge strategy before offering updates. | Version the scaffolded files with a `.warehouse-architect-version` marker. Future milestone can add `architect update` with diff-based merging. |
-| **Plugin system for custom agents** | "Let users define their own agents through a plugin API." | Premature abstraction. We do not know what users want to customize yet. Plugin APIs are expensive to design, impossible to change, and constrain internal evolution. | Users edit the generated markdown files directly. Markdown is the API. If patterns emerge for customization, extract a plugin system in v2+. |
-| **Web UI / dashboard** | "Show agent conversations, debate history, model visualizations in a browser." | Out of scope. This is a CLI tool. OpenCode provides the conversation UI. Adding a web UI is a different product. | OpenCode's TUI is the interface. Agent conversations happen there. If visualization is needed, generate static Mermaid diagrams from specs. |
-| **Multi-provider agent support** | "Support Claude, GPT, Gemini, Llama agents simultaneously." | OpenCode handles model routing. The CLI scaffolds agent definitions. Agent definitions can specify `model` in frontmatter, but the CLI should not try to configure or validate provider credentials. | Set reasonable model defaults in agent frontmatter (e.g., `anthropic/claude-sonnet-4-5`). Users change models in OpenCode config or agent frontmatter. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **GUI for spec editing** | Visual tools feel more accessible | Adds complexity, breaks CLI-first workflow, requires frontend stack, maintenance burden | Official Anchor Modeler GUI exists for visual modeling. Use `dab import/export` for roundtrip. YAML is the editing interface |
+| **Auto-detect anchors from source schema** | Seems to save time upfront | CLP modeling requires business context and debate (probabilistic). Auto-detection produces bad models. Anchor ≠ table. This is what agents are for | Use Data Architect + agents (v0.1.0) to produce spec through CLP debate. Deterministic detection deferred to DAS layer (v0.4.0+) |
+| **Support for non-Anchor patterns** | "Why can't I generate star schema directly?" | Tool is opinionated about Anchor Modeling. Mixing methodologies creates confusion. Star schema is DAR layer, not DAB | Anchor is DAB layer. DAR (USS) generation is separate concern (v0.4.0+). Clear separation of concerns |
+| **Real-time CDC generation** | Modern stacks use streaming | Batch-first strategy. Streaming adds complexity (state, ordering, late arrival). Anchor is designed for batch ELT. Prove batch first | Generate batch SQL first. Streaming can be added later if validated need exists |
+| **Template customization language** | "Let me tweak the SQL templates" | Every customization is a maintenance burden. Users fork templates and can't upgrade. Diverges from Anchor conventions. Creates N forks | Provide dialect parameter. If SQL doesn't match needs, open issue to improve defaults for everyone. Customization = forking |
+| **Inline SQL in spec** | "Let me add custom transformations" | Spec becomes half-declarative, half-imperative. Hard to validate, version, test. Mixing concerns | Keep spec pure metadata. Custom logic belongs in staging layer (DAS) or consumption layer (DAR), not DAB spec |
+| **Generate entire pipeline** | "Give me end-to-end from source to BI tool" | Scope explosion. Every org has different orchestration (Airflow, dbt, Bruin, Dagster). Hard to support all. DAB is one layer | Generate DAB SQL. Users integrate into their orchestration tool of choice. Bruin asset format is first-class but optional |
+| **ORM integration** | "Generate SQLAlchemy/TypeORM models" | Anchor's 6NF structure (one attribute per table) is designed for set-based SQL, not ORM navigation. ORM impedance mismatch | DAR layer (USS) is where consumption views live. Generate views for ORM consumption, not ORM models for Anchor tables |
 
 ## Feature Dependencies
 
 ```
-[pip install warehouse-architect]
-    |
-    v
-[architect init]
-    |
-    +--creates--> [.opencode/agents/*.md]  (6 agent definitions)
-    |                 |
-    |                 +--requires--> [Valid OpenCode frontmatter format]
-    |                 +--requires--> [Domain expertise in system prompts]
-    |                 +--requires--> [CLP debate protocol in prompts]
-    |                 +--requires--> [Anchor Modeling rules in prompts]
-    |
-    +--creates--> [AGENTS.md]  (project-level rules)
-    |                 |
-    |                 +--requires--> [ADSS methodology description]
-    |                 +--requires--> [CLP workflow overview]
-    |                 +--requires--> [Naming conventions]
-    |
-    +--creates--> [opencode.json]  (project configuration)
-    |                 |
-    |                 +--requires--> [Agent team configuration]
-    |                 +--requires--> [Default model selection]
-    |                 +--requires--> [Tool permissions]
-    |
-    +--creates--> [.warehouse/schemas/]  (spec format templates)
-    |                 |
-    |                 +--requires--> [Anchor Model element definitions]
-    |                 +--enables---> [Consistent agent output format]
-    |
-    +--creates--> [.opencode/skills/]  (optional, reusable capabilities)
-                      |
-                      +--requires--> [agents to exist first]
-                      +--enhances--> [agent capabilities]
+YAML Schema Definition
+    └──enables──> Spec Scaffold (`dab init`)
+                       └──enables──> Spec Validation
+                                        └──enables──> SQL Generation (`dab generate`)
+                                                         └──enables──> Bruin Asset Output
 
-[Agent quality] ----requires----> [Prompt engineering depth]
-                                       |
-                                       +--requires--> [Anchor Modeling domain expertise]
-                                       +--requires--> [CLP workflow expertise]
-                                       +--requires--> [Debate protocol design]
-                                       +--requires--> [Study of Roenbaeck reference]
+Spec Validation
+    └──requires──> Anchor XML Schema (anchor.xsd) knowledge
+    └──requires──> Extension Schema (staging, keyset) definition
+    └──enables──> Line Number Error Reporting
+
+Import (`dab import`)
+    └──requires──> Anchor XML Parser (lxml with XSD)
+    └──requires──> YAML Schema Definition
+    └──produces──> Valid YAML Spec
+
+Export (`dab export`)
+    └──requires──> Spec Validation (must be valid before export)
+    └──requires──> Anchor XML Writer (compliant with anchor.xsd)
+    └──drops──> Extensions (staging, keyset)
+
+Multi-dialect SQL
+    └──requires──> Dialect Abstraction (SQLGlot or Jinja2 per dialect)
+    └──requires──> Dialect-specific keywords (SERIAL vs IDENTITY vs AUTOINCREMENT)
+
+Keyset Identity
+    └──requires──> Staging Mappings (natural key columns defined)
+    └──generates──> SQL to construct `entity@system~tenant|natural_key`
+
+Multi-source Staging Mappings
+    └──requires──> Column-level Staging Mappings (foundation)
+    └──requires──> Union semantics (same anchor, multiple sources)
+
+Dependency Ordering
+    └──requires──> Spec Validation (detect circular dependencies)
+    └──requires──> Graph traversal (topological sort)
+
+Northwind Example
+    └──requires──> Spec Scaffold (template structure)
+    └──requires──> Import (OData metadata → Anchor XML → YAML)
+    └──validates──> All features (keyset, multi-source, generation)
+
+Bruin Asset Output
+    └──requires──> SQL Generation (base functionality)
+    └──adds──> YAML frontmatter (materialization, columns, checks)
 ```
 
 ### Dependency Notes
 
-- **Agent definitions are the critical path.** Everything else (AGENTS.md, opencode.json, schemas, skills) supports agent quality but the agents ARE the product.
-- **Prompt engineering gates everything.** The CLI is trivial (copy files to disk). The value is entirely in what those files contain. Prompt quality requires deep domain research.
-- **AGENTS.md is force-multiplier.** OpenCode loads project rules into every agent context. Shared methodology context in AGENTS.md means each agent prompt can be shorter and more focused on its role.
-- **opencode.json reduces user setup.** Without it, users must manually configure agents, models, and permissions. With it, `architect init` produces a fully configured project.
-- **Skills decouple complexity from prompts.** Instead of putting spec validation logic in the Data Architect's system prompt, put it in a skill. The agent invokes the skill when needed.
-- **Spec schemas enable consistent output.** Without a defined spec format, each agent invents its own. With schemas, agents can reference the expected output format.
+- **YAML Schema is foundation:** Can't scaffold, validate, or generate without knowing structure. Must define anchor.xsd elements + extensions early
+- **Validation gates generation:** Generator assumes valid input. "Garbage in, garbage out" without validation. Line numbers critical for debugging large specs
+- **Import/Export require XSD compliance:** Must parse/write official anchor.xsd format. Python `lxml` with XSD validation. Extensions are additive (import keeps them, export drops them)
+- **Multi-dialect requires abstraction:** Two approaches: (1) Jinja2 templates per dialect, (2) SQLGlot transpilation. Sisula approach (regex substitution) is fragile, don't replicate
+- **Keyset requires Staging Mappings:** Can't construct `entity@system~tenant|natural_key` without knowing which source columns form natural key. Staging mappings define column lineage
+- **Multi-source enhances Staging:** Single-source is MVP. Multi-source adds union semantics (same anchor from multiple systems). Defer until single-source validated
+- **Dependency Ordering prevents errors:** SQL must create knots before attributes reference them. Ties reference anchors so must come last. Graph sort is standard algorithm
+- **Northwind validates everything:** Pre-filled spec exercises all features. If Northwind generates clean SQL, features work
 
-## Milestone 1 Definition (init + agents)
+## MVP Definition
 
-### Launch With (v1 Milestone 1)
+### Launch With (v0.3.0)
 
-Minimum viable product -- validate that scaffolded agents provide genuine value through CLP debate in OpenCode.
+Minimum viable product -- what's needed to validate DAB generation concept with Northwind example.
 
-- [ ] **`architect init` command** -- single command creates all files in cwd, no prompts, clear output
-- [ ] **6 agent definition files** -- Data Architect, System Analyst, Business Analyst, Data Engineer, Analytics Engineer, Veteran Reviewer in `.opencode/agents/`
-- [ ] **Data Architect as entry point** -- primary agent users talk to, orchestrates debate through prompt guidance
-- [ ] **CLP debate protocol in prompts** -- agents argue through Conceptual -> Logical -> Physical stages
-- [ ] **Anchor Modeling rules in prompts** -- Data Architect and Veteran Reviewer encode methodology rules
-- [ ] **AGENTS.md with project rules** -- shared ADSS/Anchor Modeling context for all agents
-- [ ] **opencode.json configuration** -- agent team pre-configured with model defaults and permissions
-- [ ] **Idempotent re-run** -- skip existing files with warning, `--force` to overwrite
-- [ ] **`--help` with usage examples** -- standard CLI help via Typer
-- [ ] **Error handling** -- human-readable errors for common failure modes
+- [x] **YAML schema definition** -- Anchor elements (anchor, attribute, tie, knot) + extensions (staging_tables, keyset_identity). Document structure in schema comments
+- [x] **Spec scaffold (`dab init`)** -- Generate blank YAML template with all sections, inline comments explaining each field. Same UX as `architect init` (--force, --dry-run flags)
+- [x] **Spec validation** -- Parse YAML, validate required fields, check referential integrity (attributes reference valid anchors), report line numbers on errors. Fail fast before generation
+- [x] **SQL generation (`dab generate`)** -- Produce idempotent CREATE TABLE + Anchor conventions (surrogate keys, metadata columns, 6NF structure). **PostgreSQL dialect first** (proven, open-source, common)
+- [x] **Per-entity output** -- One `.sql` file per anchor (with attributes/ties). Organized in `output/` directory. Filenames: `anchor_name.sql`, `tie_anchor1_anchor2.sql`
+- [x] **Idempotent SQL** -- IF NOT EXISTS for CREATE TABLE. Additive-only schema evolution (Anchor convention). Safe to re-run on existing database
+- [x] **Keyset identity generation** -- SQL to construct `entity@system~tenant|natural_key` from source natural key columns. VARCHAR column in anchor table
+- [x] **Staging mappings (single source)** -- Specify source table → anchor attribute mappings in spec. One `staging_table` per anchor for MVP. Multi-source deferred
+- [x] **Northwind example** -- Pre-filled YAML spec for Northwind OData as reference implementation and test case. Validates all MVP features
+- [x] **Deterministic output** -- No timestamps, random IDs. Same spec → same SQL every time. Git-friendly diffs
+- [x] **Metadata columns** -- Auto-generate `metadata_recorded_at`, `metadata_recorded_by`, `metadata_id` in every table
+- [x] **Validation error line numbers** -- Parser reports line number for every error. Fast debugging
 
-### Add After Validation (v1.x)
+### Add After Validation (v0.3.x)
 
-Features to add once the agent experience is validated with real users.
+Features to add once core is working and validated with Northwind example.
 
-- [ ] **`--dry-run` flag** -- trigger: users want to preview before scaffolding
-- [ ] **`--dir` flag for output directory** -- trigger: monorepo users need non-cwd scaffolding
-- [ ] **OpenCode skills** -- trigger: agent prompts become too long, need to extract reusable capabilities
-- [ ] **Spec schema bootstrapping** -- trigger: agents need a concrete output format reference
-- [ ] **`architect update`** -- trigger: prompt improvements need to reach existing projects
-- [ ] **Agent personality configuration** -- trigger: users want conservative vs aggressive design philosophy
-- [ ] **`architect generate` command (DAS scripts)** -- trigger: milestone 2 begins
-- [ ] **`architect generate` command (DAR scripts)** -- trigger: milestone 2+ continues
+- [ ] **Import (`dab import`)** -- Parse official Anchor XML → YAML. Enables users to migrate existing Anchor Modeler projects — *trigger: user requests migration from Anchor Modeler*
+- [ ] **Export (`dab export`)** -- YAML → official Anchor XML. Enables roundtrip to Anchor Modeler GUI for visual editing — *trigger: users want visual model view*
+- [ ] **Multi-source staging mappings** -- Multiple `staging_tables[]` per anchor. Union semantics. Handles same entity from different systems — *trigger: multi-source use case validated (e.g., Customer from CRM + ERP)*
+- [ ] **SQL Server dialect** -- Second dialect proves abstraction layer works. Common in enterprise — *trigger: SQL Server user request*
+- [ ] **Snowflake dialect** -- Third dialect, common in modern cloud stacks — *trigger: Snowflake user request*
+- [ ] **Bruin asset format** -- Output `.sql` with Bruin YAML frontmatter. Alternative to raw SQL. Materialization: merge (SCD2), view (current state) — *trigger: Bruin user request or partnership*
+- [ ] **Dry-run mode** -- `--dry-run` flag to preview without writing files — *trigger: user wants to inspect SQL before committing*
+- [ ] **Dependency ordering** -- Knots → Anchors → Attributes → Ties. Prevents FK constraint errors on fresh database — *trigger: complex schema with many ties fails on creation*
+- [ ] **Diff-friendly formatting** -- Consistent SQL style, one column per line, trailing commas — *trigger: users complain about noisy git diffs*
 
-### Future Consideration (v2+)
+### Future Consideration (v0.4.0+)
 
-Features to defer until agent experience is proven and user base established.
+Features to defer until DAB generation is proven and adopted.
 
-- [ ] **Plugin system for custom agents** -- why defer: premature abstraction, markdown files ARE the API
-- [ ] **Interactive init prompts** -- why defer: nothing to ask yet, adds friction to onboarding
-- [ ] **Template engine integration** -- why defer: files are not parameterized in milestone 1
-- [ ] **Auto-update with merge** -- why defer: need conflict resolution strategy first
-- [ ] **Web-based agent conversation viewer** -- why defer: different product, OpenCode provides the UI
-- [ ] **CI/CD integration (GitHub Actions)** -- why defer: validate manual workflow first
+- [ ] **Oracle dialect** -- Legacy enterprise systems — *defer: smaller user base, Oracle-specific complexity (PL/SQL, sequences)*
+- [ ] **Vertica dialect** -- Analytics-specific platform — *defer: niche use case*
+- [ ] **Template customization** -- Allow users to override SQL templates per dialect — *defer: maintenance burden, diverges from conventions, users can't upgrade*
+- [ ] **Incremental generation** -- Only regenerate changed entities — *defer: premature optimization, full generation is fast enough (<1s for Northwind)*
+- [ ] **Schema diff tool** -- Compare two versions of spec, show changes — *defer: git diff on YAML is sufficient for v1*
+- [ ] **Metadata registry integration** -- Push generated schema to catalog (Datahub, Amundsen) — *defer: external integration, not core value*
+- [ ] **DAS generation** -- Source schemas → staging tables (deterministic) — *defer: separate milestone (v0.4.0+)*
+- [ ] **DAR generation** -- DAB → USS views (deterministic) — *defer: separate milestone (v0.4.0+)*
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Priority | Milestone |
-|---------|------------|---------------------|----------|-----------|
-| `architect init` command (Typer) | HIGH | LOW | P1 | M1 |
-| 6 agent markdown files | HIGH | HIGH (prompt eng) | P1 | M1 |
-| CLP debate protocol in prompts | HIGH | HIGH (design) | P1 | M1 |
-| Anchor Modeling rules in prompts | HIGH | HIGH (domain) | P1 | M1 |
-| AGENTS.md project rules | HIGH | MEDIUM | P1 | M1 |
-| opencode.json configuration | MEDIUM | LOW | P1 | M1 |
-| Idempotent re-run / --force | MEDIUM | LOW | P1 | M1 |
-| --help with examples | MEDIUM | LOW | P1 | M1 |
-| Error handling | MEDIUM | LOW | P1 | M1 |
-| --dry-run flag | LOW | LOW | P2 | M1.x |
-| --dir output directory | LOW | LOW | P2 | M1.x |
-| OpenCode skills | MEDIUM | MEDIUM | P2 | M1.x |
-| Spec schema bootstrapping | MEDIUM | MEDIUM | P2 | M1.x |
-| architect update command | MEDIUM | HIGH | P2 | M1.x |
-| architect generate (DAS) | HIGH | HIGH | P1 | M2 |
-| architect generate (DAR) | HIGH | HIGH | P1 | M2+ |
+| Feature | User Value | Implementation Cost | Priority | Notes |
+|---------|------------|---------------------|----------|-------|
+| YAML schema definition | HIGH | LOW | P1 | Foundation for all other features. Must define early |
+| Spec scaffold (`dab init`) | HIGH | LOW | P1 | Follows proven `architect init` pattern from v0.1.0 |
+| Spec validation | HIGH | MEDIUM | P1 | Prevents downstream SQL errors. Critical quality gate |
+| SQL generation (PostgreSQL) | HIGH | HIGH | P1 | Core value delivery. Start with PostgreSQL (open, common) |
+| Per-entity output | HIGH | LOW | P1 | Matches Anchor entity-per-table. Better UX than monolith |
+| Idempotent SQL | HIGH | MEDIUM | P1 | Safe re-runs essential for tooling. IF NOT EXISTS patterns |
+| Keyset identity | HIGH | MEDIUM | P1 | Differentiator, enables multi-source. Generates construction SQL |
+| Staging mappings (single) | HIGH | MEDIUM | P1 | Required for SQL generation from sources |
+| Northwind example | MEDIUM | MEDIUM | P1 | Reference for learning, validates all features |
+| Deterministic output | HIGH | LOW | P1 | Git-friendly, reproducible builds. No randomness |
+| Metadata columns | HIGH | LOW | P1 | Anchor convention, expected by users |
+| Validation line numbers | MEDIUM | LOW | P1 | Better UX, not essential but cheap to add |
+| Import from XML | MEDIUM | MEDIUM | P2 | Enables migration from Anchor Modeler. Nice-to-have |
+| Export to XML | MEDIUM | MEDIUM | P2 | Roundtrip to official tooling. Nice-to-have |
+| Multi-source staging | MEDIUM | HIGH | P2 | Powerful but complex. Defer until single-source proven |
+| SQL Server dialect | MEDIUM | MEDIUM | P2 | Proves multi-dialect works. Add on demand |
+| Snowflake dialect | MEDIUM | MEDIUM | P2 | Modern stack support. Add on demand |
+| Bruin asset format | MEDIUM | MEDIUM | P2 | Nice integration, not essential. Add if Bruin users request |
+| Dry-run mode | LOW | LOW | P2 | QOL improvement, low effort |
+| Dependency ordering | MEDIUM | MEDIUM | P2 | Prevents errors in complex schemas. Add if needed |
+| Diff-friendly formatting | LOW | LOW | P2 | Better git diffs. Nice-to-have |
+| Oracle/Vertica dialects | LOW | HIGH | P3 | Niche use cases, high complexity |
+| Template customization | LOW | HIGH | P3 | Maintenance burden, divergence risk |
+| Incremental generation | LOW | MEDIUM | P3 | Premature optimization for v1 |
+| Schema diff tool | LOW | MEDIUM | P3 | Git diff sufficient for v1 |
+| Metadata registry | LOW | HIGH | P3 | External concern, not core |
 
 **Priority key:**
-- P1: Must have for milestone launch
-- P2: Add when possible after milestone validation
+- P1: Must have for v0.3.0 launch -- validates DAB generation concept
+- P2: Should have, add in v0.3.x when users request -- enhances core value
+- P3: Nice to have, defer to v0.4.0+ -- not essential for adoption
 
 ## Competitor Feature Analysis
 
-### CLI Scaffolding Tools Comparison
+| Feature | Official Anchor Modeler (GUI) | sqldef (Idempotent SQL) | DBT (Transform Tool) | Liquibase (Migrations) | Data Architect |
+|---------|-------------------------------|-------------------------|----------------------|------------------------|----------------|
+| **Visual modeling** | ✓ Drag-drop GUI | ✗ None | ✗ None | ✗ None | ✗ Use official tool, roundtrip via import/export |
+| **XML import/export** | ✓ Native format | ✗ N/A | ✗ N/A | ✗ N/A | ✓ Roundtrip to official Anchor XML |
+| **Multi-dialect SQL** | ✓ 5 dialects (Sisula) | ✓ 4 dialects | ✓ 10+ dialects (adapters) | ✓ All major DBs | ✓ 3+ dialects (PostgreSQL, SQL Server, Snowflake) |
+| **Idempotent generation** | ✓ IF NOT EXISTS | ✓ Core feature | ✓ Incremental models | ✓ Changesets | ✓ IF NOT EXISTS, CREATE OR REPLACE |
+| **YAML/code-first** | ✗ GUI-only | ✓ Plain SQL DDL | ✓ SQL + YAML config | ✓ XML/YAML/SQL | ✓ YAML spec as source of truth |
+| **Staging mappings** | ✗ Manual ETL | ✗ Schema-only | ✗ Transform-only | ✗ Schema-only | ✓ Column-level, multi-source |
+| **Keyset identity** | ✗ Surrogate keys only | ✗ N/A | ✗ N/A | ✗ N/A | ✓ `entity@system~tenant\|natural_key` |
+| **CLI tool** | ✗ Browser-based | ✓ CLI binary | ✓ CLI binary | ✓ CLI binary | ✓ Python CLI |
+| **Bruin integration** | ✗ None | ✗ None | ⊕ Similar (dbt models) | ✗ None | ✓ Optional Bruin assets |
+| **Anchor methodology** | ✓ Native | ✗ Generic schemas | ✗ Transform layer | ✗ Generic schemas | ✓ Native + extensions |
+| **Temporal modeling** | ✓ 6NF, historized | ✗ User responsibility | ⊕ SCD2 patterns | ✗ User responsibility | ✓ 6NF, historized (Anchor) |
+| **Agent integration** | ✗ None | ✗ None | ✗ None | ✗ None | ✓ Agents produce spec via debate (v0.1.0) |
+| **Dependency ordering** | ✓ Smart | ✗ User orders | ✗ ref() function | ✓ Preconditions | ✓ Automatic (topological sort) |
 
-| Feature | Cookiecutter | Copier | Yeoman | skills-cli | Warehouse Architect |
-|---------|-------------|--------|--------|------------|---------------------|
-| **Language** | Python | Python | JavaScript | Python | Python |
-| **Config format** | JSON | YAML | JavaScript | YAML frontmatter | None (opinionated) |
-| **Interactive prompts** | Yes (required) | Yes (required) | Yes (required) | No | No (deliberate) |
-| **Template engine** | Jinja2 | Jinja2 | EJS | None | None (deliberate) |
-| **Update existing projects** | No | Yes (killer feature) | No | No | Future (architect update) |
-| **Migrations** | No | Yes | No | No | Future |
-| **Post-generation hooks** | Yes | Yes (tasks) | Yes | No | No (not needed) |
-| **Validation** | Minimal | Schema-based | Programmatic | YAML frontmatter | OpenCode format compliance |
-| **Zero-config mode** | No | No | No | Yes (skills create) | Yes (core UX) |
-| **Domain-specific output** | Generic | Generic | Generic | Agent skills | Data warehouse agents |
+**Key differentiators vs competitors:**
+- **vs Official Anchor Modeler:** CLI-first (not browser GUI), YAML-based (not XML-only), agent integration (CLP debate produces spec), keyset identity, staging mappings. Roundtrip to GUI for visual modeling via import/export
+- **vs sqldef:** Methodology-aware (Anchor conventions), not generic DDL. Staging mappings (source → target lineage), keyset identity (provenance), agent-produced specs (probabilistic → deterministic boundary)
+- **vs dbt:** Different layer (DAB not DAR), Anchor methodology (6NF not star), declarative spec (not transform SQL). dbt consumes DAB output (v0.4.0+ DAR generation). Complementary, not competitive
+- **vs Liquibase:** Anchor-specific (not generic migrations), full spec (not incremental changesets), idempotent (not stateful history). Different philosophy: declare desired state, not migration path
 
-**Key insight:** Every major scaffolding tool assumes the output is parameterized and requires user input. Our tool is the opposite: output is fixed, opinionated, and requires zero input. This is a feature, not a limitation. The value is in the content of the generated files, not in the generation mechanism.
+**Where we're weaker:**
+- No visual GUI (intentional -- official Anchor Modeler exists, use import/export for roundtrip)
+- Fewer dialects at launch (will expand based on user demand -- PostgreSQL/SQL Server/Snowflake first)
+- No incremental generation (full regeneration fine for v1 -- Northwind <1s)
 
-### AI Agent Setup Tools Comparison
+**Where we're stronger:**
+- **Only tool combining Anchor Modeling + staging mappings + keyset identity** -- unique position
+- YAML ergonomics with XML interoperability (best of both worlds)
+- Agent debate produces spec (probabilistic → deterministic boundary) -- agents in v0.1.0, generators in v0.3.0
+- Multi-source staging mappings enable complex source → anchor scenarios (same Customer anchor from CRM + ERP + legacy system)
+- Keyset identity encodes provenance without lookup tables (`customer@crm~acme|12345` vs `customer@erp~acme|CUST-890`)
 
-| Feature | opencode-template | rothnic/opencode-agents | skills-cli | Warehouse Architect |
-|---------|-------------------|------------------------|------------|---------------------|
-| **Agent count** | 10 (generic dev) | Variable (custom) | N/A (skills not agents) | 6 (domain-specific) |
-| **Domain expertise** | Generic (frontend, backend, security) | Generic (user-defined) | Generic | Deep (DW design, Anchor Modeling) |
-| **Debate protocol** | None | Orchestrator pattern | N/A | CLP debate with synthesis |
-| **Multi-agent coordination** | Implicit (@mentions) | Orchestrator + sub-agents | N/A | Data Architect synthesizes |
-| **Methodology enforcement** | None | None | None | Anchor Modeling rules, CLP gates |
-| **Scaffolding tool** | Manual copy | CLI wizard | `skills create` | `architect init` |
-| **Project configuration** | Manual | Partial | N/A | Full (opencode.json + AGENTS.md) |
+## Dependencies on Existing Features (v0.1.0/v0.2.0)
 
-**Key insight:** Existing OpenCode agent templates provide generic development roles. No template provides domain-specific data warehouse design expertise with structured debate protocols. This is the blue ocean.
+| New Feature (v0.3.0) | Depends On (v0.1.0/v0.2.0) | Reason |
+|----------------------|----------------------------|--------|
+| `dab init` scaffold | `architect init` pattern (v0.1.0) | Proven CLI scaffolding approach, same flags (--force, --dry-run, --dir), same UX, same symbol output |
+| Spec validation | Test framework (pytest, v0.1.0) | Validation requires extensive test coverage for edge cases (92.77% coverage baseline) |
+| SQL generation | Pure functional style (v0.1.0) | Immutable specs → deterministic SQL. No side effects. Frozen dataclasses for data, pure functions for behavior |
+| Error messages | Symbol output pattern (v0.1.0) | User-friendly errors with line numbers, not stack traces. Follows CLI UX from `architect init` |
+| `dab` subcommands | CLI infrastructure (Click, v0.1.0) | Subcommand routing (`architect dab init`), flag parsing, help text generation |
+| TDD approach | 92.77% coverage baseline (v0.1.0) | SQL generation is complex, requires comprehensive tests. TDD mandatory per project constraints |
+| Makefile targets | `make check` (v0.1.0) | Code generation quality gates (lint, type, test). Same tooling for consistency |
+| Pre-commit hooks | `.pre-commit-config.yaml` (v0.2.0) | Prevent committing invalid SQL templates or broken generators. Same quality enforcement |
+| Dynamic versioning | Git tags (v0.1.0) | Consistent versioning across CLI + generated SQL comments (`-- Generated by data-architect v0.3.0`) |
+| UV build system | UV + Hatchling (v0.1.0) | Package management, build, test, publish. No new tooling |
 
-### Data Warehouse Tool Feature Comparison (Agent Context)
-
-| Capability | Ellie.ai | ER/Studio | Anchor Modeler | Warehouse Architect |
-|------------|----------|-----------|----------------|---------------------|
-| **AI-assisted design** | Single LLM | ERbert assistant | None | Multi-agent debate |
-| **Anchor Modeling** | No | Partial (generic) | Full (reference) | Full (AI-guided) |
-| **CLP workflow** | Yes | Yes | Implicit | Yes (enforced via agents) |
-| **Multi-perspective analysis** | No | No | No | Yes (SA vs BA debate) |
-| **Methodology critique** | No | No | No | Yes (Veteran Reviewer) |
-| **Setup mechanism** | SaaS onboarding | Enterprise install | Web tool | `pip install` + `architect init` |
-| **User drives process** | AI drives | User drives | User drives | User drives with AI guidance |
-
-**Key insight:** No data warehouse design tool uses multi-agent debate for modeling decisions. Ellie.ai uses a single AI assistant. We provide six specialized agents who argue from different perspectives. The user remains in control, but has access to structured expert debate.
-
-## Domain-Specific Considerations
-
-### OpenCode Agent Format (Verified)
-
-Based on official OpenCode documentation (HIGH confidence):
-
-**Agent files:** Markdown with YAML frontmatter in `.opencode/agents/`
-- Required field: `description` (string)
-- Optional fields: `model` (provider/model-id), `temperature` (0.0-1.0), `top_p`, `tools` (object), `permission` (object with edit/bash/webfetch), `hidden` (boolean), `color` (string), `disable` (boolean), `steps` (number), `mode` (subagent/primary/all)
-- Body: system prompt in markdown
-
-**Project rules:** `AGENTS.md` in project root (loaded into all agent contexts)
-
-**Project config:** `opencode.json` in project root (merges with global config)
-
-**Skills:** `.opencode/skills/<name>/SKILL.md` with YAML frontmatter (name, description required)
-
-### CLI Scaffolding UX (Verified)
-
-Based on clig.dev and scaffolding tool analysis (HIGH confidence):
-
-- **Zero-config is the gold standard** for opinionated tools. If there is nothing to ask, do not ask.
-- **Always confirm what was created.** List files, show structure, suggest next steps.
-- **Provide `--help` with examples.** Show the most common invocation first.
-- **Handle re-runs gracefully.** Skip existing, warn, offer `--force`.
-- **Errors are conversations.** Tell users what went wrong and what to do next.
-- **Suggest next steps after completion.** "Now open OpenCode and start a conversation with @data-architect."
-
-### Prompt Engineering as Product
-
-The CLI is trivial. The prompts are the product. Research indicates:
-
-- **Agent personas must be deeply specific.** Generic "you are a data architect" prompts produce generic output. The prompts must encode specific Anchor Modeling rules, CLP checkpoint criteria, debate positions, and decision frameworks.
-- **Debate protocol must be explicit.** Without explicit protocol in prompts, agents will agree with each other (premature consensus). System Analyst and Business Analyst must have opposing default positions.
-- **Methodology rules must be verifiable.** The Veteran Reviewer needs concrete anti-pattern checklists, not vague "review for quality" instructions.
-- **Shared context (AGENTS.md) reduces prompt size.** Put methodology overview, naming conventions, and workflow rules in AGENTS.md. Agent prompts focus on role-specific behavior.
+**No dependencies on agent definitions** -- DAB generation is deterministic, doesn't invoke agents. Agents (v0.1.0) optionally produce YAML specs, but `dab generate` works with any valid spec (manual or agent-produced). Clear separation: agents = probabilistic (CLP debate), generators = deterministic (spec → SQL).
 
 ## Sources
 
-**OpenCode Agent Format (HIGH confidence):**
-- [Agents | OpenCode](https://opencode.ai/docs/agents/) -- Official agent definition format, frontmatter fields, directory structure
-- [Config | OpenCode](https://opencode.ai/docs/config/) -- Project configuration format, opencode.json structure
-- [Agent Skills | OpenCode](https://opencode.ai/docs/skills/) -- Skills format, SKILL.md structure, discovery mechanism
-- [Rules | OpenCode](https://opencode.ai/docs/rules/) -- AGENTS.md format, project-level rules, instruction loading
+**Anchor Modeling (HIGH confidence):**
+- [Anchor Modeling Official Site](https://www.anchormodeling.com/) -- Methodology overview, 6NF patterns, temporalization
+- [Anchor Modeler GitHub](https://github.com/Roenbaeck/anchor) -- Official tool, directives for SQL generation, multi-dialect support
+- [Anchor Modeling Wikipedia](https://en.wikipedia.org/wiki/Anchor_modeling) -- Core concepts (anchors, attributes, ties, knots)
+- [Anchor Modeling Paper (PDF)](https://www.anchormodeling.com/wp-content/uploads/2011/05/Anchor-Modeling.pdf) -- Formal methodology definition
+- [From Anchor Model to XML (PDF)](https://www.anchormodeling.com/wp-content/uploads/2010/09/AM-XML.pdf) -- XML Schema (anchor.xsd) definition, formal structure
+- [Codecentric: Database Design Using Anchor Modeling](https://www.codecentric.de/en/knowledge-hub/blog/agile-database-design-using-anchor-modeling) -- Practical usage patterns
+- [Anchor Modeling DBMS Tools](https://dbmstools.com/tools/anchor-modeling) -- Tool features comparison
+- [GitHub: jangorecki/anchormodeling](https://github.com/jangorecki/anchormodeling) -- R implementation, metadata management, identity patterns
 
-**CLI Scaffolding Tools (HIGH confidence):**
-- [Command Line Interface Guidelines](https://clig.dev/) -- CLI UX best practices, init command patterns
-- [Copier Documentation](https://copier.readthedocs.io/en/stable/creating/) -- Template creation, update mechanism, migration support
-- [Cookiecutter Documentation](https://cookiecutter.readthedocs.io/en/stable/advanced/hooks.html) -- Hooks, prompts, conditional generation
-- [Typer Documentation](https://typer.tiangolo.com/) -- Python CLI framework, auto-help, type hints
+**Sisula Templating (MEDIUM confidence):**
+- [Sisula GitHub](https://github.com/Roenbaeck/sisula) -- Simple substitution language for XML → text (SQL) transformation
+- [Introducing sisula](https://www.anchormodeling.com/introducing-sisula/) -- Replacement for XSLT in Anchor Modeler
+- [Metadata Driven Anchor DW Automation](https://www.anchormodeling.com/metadata-driven-anchor-dw-automation/) -- ETL framework patterns
 
-**OpenCode Agent Templates (MEDIUM confidence):**
-- [Agent Directory | opencode-template | DeepWiki](https://deepwiki.com/julianromli/opencode-template/2.1-agent-directory) -- Example agent organization, role categories
-- [rothnic/opencode-agents](https://github.com/rothnic/opencode-agents/blob/main/docs/custom-coding-agents.md) -- Custom agent setup, orchestrator pattern
-- [skills-cli | PyPI](https://pypi.org/project/skills-cli/) -- Skills management CLI, create/validate/install commands
+**YAML Validation (HIGH confidence):**
+- [Yamale: Schema and Validator for YAML](https://github.com/23andMe/Yamale) -- Python YAML validation library
+- [JSON Schema for YAML Validation](https://json-schema-everywhere.github.io/yaml) -- Standard approach for YAML validation
+- [Validate YAML in Python with Schema](https://www.andrewvillazon.com/validate-yaml-python-schema/) -- Practical validation patterns
 
-**Agent Scaffolding Concepts (MEDIUM confidence):**
-- [Agent scaffolding: Architecture, types and enterprise applications | ZBrain](https://zbrain.ai/agent-scaffolding/) -- Agent scaffolding definition, architecture patterns
-- [The Complete Guide to Agentic Coding Frameworks in 2026](https://ralphwiggum.org/blog/agentic-coding-frameworks-guide) -- Framework landscape, CLI patterns
+**SQL Code Generation (MEDIUM confidence):**
+- [SQL-GEN: Bridging the Dialect Gap](https://arxiv.org/html/2408.12733v2) -- Multi-dialect SQL generation patterns, synthetic data approach
+- [sqlglot.dialects API](https://sqlglot.com/sqlglot/dialects.html) -- SQL dialect abstraction and transpilation
+- [LangChain Text-to-SQL](https://promethium.ai/guides/llm-ai-models-text-to-sql/) -- SQL generation frameworks (SQLDatabase, SQLAlchemy)
 
-**Data Warehouse Design (HIGH confidence from prior research):**
-- [Anchor Modeling Official Site](https://www.anchormodeling.com/) -- Methodology rules, 6NF patterns
-- [Anchor Modeling - DBMS Tools](https://dbmstools.com/tools/anchor-modeling) -- Tool features, DDL generation, platform support
-- [Ellie.ai](https://www.ellie.ai/) -- Competitor: single AI assistant for data modeling
+**Idempotent SQL (HIGH confidence):**
+- [sqldef: Idempotent Schema Management](https://github.com/sqldef/sqldef) -- Tool for MySQL, PostgreSQL, SQLite, SQL Server
+- [Creating Idempotent DDL Scripts (Redgate)](https://www.red-gate.com/hub/product-learning/flyway/creating-idempotent-ddl-scripts-for-database-migrations) -- Best practices
+- [Idempotent SQL DDL (Medium)](https://medium.com/full-stack-architecture/idempotent-sql-ddl-ca354a1eee62) -- IF NOT EXISTS patterns
+- [Idempotent Database Journaling](https://diegocantor.com/idempotent-database-journaling/) -- Repeatable script sequences
 
-**Python CLI Packaging (HIGH confidence):**
-- [Building a Package - Typer](https://typer.tiangolo.com/tutorial/package/) -- pip-installable CLI with entry points
-- [PyScaffold Documentation](https://pyscaffold.org/en/stable/usage.html) -- Python project scaffolding patterns
+**Bruin Data Pipelines (MEDIUM confidence):**
+- [Bruin Asset Definition](https://bruin-data.github.io/bruin/assets/definition-schema.html) -- Asset YAML frontmatter schema
+- [Bruin Quickstart](https://bruin-data.github.io/bruin/getting-started/introduction/quickstart.html) -- Pipeline structure, materialization strategies
+
+**Data Warehouse Identity Management (MEDIUM confidence):**
+- [Database Keys in Data Warehouse (Medium)](https://ikbal-arslan.medium.com/database-keys-and-keys-for-data-warehouse-96855a5fbaa7) -- Natural vs surrogate keys
+- [Keys in Data Warehouse Modeling (Medium)](https://medium.com/@felipe.ramires.terrazas/keys-in-data-warehousing-modeling-a-comprehensive-guide-1901e2162d89) -- Comprehensive key patterns
+- [Surrogate Keys in Data Warehousing (APXML)](https://apxml.com/courses/data-modeling-schema-design-analytics/chapter-3-advanced-dimension-handling/surrogate-keys-vs-natural-keys) -- When to use each type
+
+**Staging Tables (HIGH confidence):**
+- [Data Staging Guide (Zuar)](https://www.zuar.com/blog/complete-guide-to-data-staging/) -- Staging best practices, multi-source patterns
+- [dbt Staging Best Practices](https://docs.getdbt.com/best-practices/how-we-structure/2-staging) -- 1-to-1 source → staging, naming conventions
+- [Staging Layer (Roelant Vos)](https://roelantvos.com/blog/enterprise_bi_architecture_overview/the-staging-layer/) -- Architecture patterns
+
+**Northwind OData (LOW confidence -- exists, structure unclear):**
+- [Northwind OData V4 Service](https://services.odata.org/V4/Northwind/Northwind.svc/) -- Reference service
+- [Northwind OData GitHub](https://github.com/JCallico/Northwind-OData) -- Implementation
+
+**Database Schema Tools (MEDIUM confidence):**
+- [Best Database Design Tools 2025 (DbSchema)](https://dbschema.com/blog/design/best-database-design-tools-2025/) -- Tool landscape
+- [Top Database CI/CD Tools 2026](https://www.dbvis.com/thetable/top-database-cicd-and-schema-change-tools-in-2025/) -- Liquibase, Flyway, sqldef comparison
 
 ---
-*Feature research for: Warehouse Architect -- Python CLI + OpenCode Agent Scaffolding*
-*Researched: 2026-02-07*
-*Confidence: HIGH -- CLI patterns well-established, OpenCode format verified from official docs, domain expertise requirements clear*
+*Feature research for: DAB Specification Management and Anchor Modeling Code Generation*
+*Researched: 2026-02-09*
+*Confidence: MEDIUM -- Anchor Modeling patterns well-established from official tools; YAML validation and SQL generation patterns mature; keyset identity and multi-source staging are novel extensions requiring validation*

@@ -1,216 +1,332 @@
 # Pitfalls Research
 
-**Domain:** Python CLI + OpenCode.ai Agents for Data Warehouse Design (ADSS/Anchor Modeling)
-**Researched:** 2026-02-07 (post-pivot from TypeScript Claude Code skill to Python CLI + OpenCode agents)
-**Confidence:** MEDIUM-HIGH
+**Domain:** DAB Code Generator (YAML-to-SQL for Anchor Modeling)
+**Researched:** 2026-02-09
+**Confidence:** MEDIUM
 
 ## Critical Pitfalls
 
-### Pitfall 1: Shallow Immutability Illusion with frozen=True
+### Pitfall 1: Lossy XML-YAML Bidirectional Transformation
 
 **What goes wrong:**
-The project mandates pure functional Python with immutable data using `@dataclass(frozen=True)`. But `frozen=True` only prevents field reassignment -- nested mutable objects (lists, dicts) inside frozen dataclasses can still be mutated. A spec dataclass containing `attributes: list[Attribute]` is "frozen" but the list is fully mutable. Code that appends to `spec.attributes` silently violates the immutability contract. Bugs appear as unexpected state changes that bypass the frozen guarantee.
+When converting from official Anchor XML format to YAML (for superset features), then back to XML for export, critical metadata is lost or corrupted. Features added in the YAML superset cannot be represented in the XML subset, leading to silent data loss during round-trip conversions. YAML 1.1 vs YAML 1.2 parsers produce different results, causing schema validation to succeed in one environment and fail in another.
 
 **Why it happens:**
-Python's `frozen=True` enforces shallow immutability only. There is no deep freeze in the stdlib. Developers assume "frozen" means "truly immutable" and write code that passes frozen dataclasses around, trusting they cannot change. The 2.4x instantiation overhead of frozen dataclasses creates pressure to skip freezing on "internal" data structures, creating an inconsistent immutability boundary.
+YAML supersets create an asymmetric relationship - every XML structure maps to YAML, but not every YAML structure maps back to XML. Developers assume bidirectional fidelity without explicitly modeling which YAML features are "export-safe." YAML version ambiguity (1.1 treats `1e2` as string, 1.2 as number) causes parsers to interpret the same document differently.
 
 **How to avoid:**
-- Use tuples and frozensets instead of lists and sets in all frozen dataclasses. Enforce via a linting rule or `__post_init__` validation using `object.__setattr__` to convert collections.
-- Define a project convention: all collection fields must be `tuple[T, ...]` or `frozenset[T]`, never `list` or `set`.
-- Use `dataclasses.replace()` for functional updates instead of mutation. Build helper functions for common transformations (add attribute, remove tie, etc.).
-- Consider `NamedTuple` for simpler data carriers where the tuple guarantee of immutability is stronger.
-- Write a custom mypy plugin or use a lint rule to flag `list` or `dict` fields in frozen dataclasses.
+- Implement a three-layer schema: XML-compatible core, YAML-safe extensions, export warnings
+- Tag YAML-only features with `# @export-incompatible` comments during parsing
+- Fail loudly on export if YAML-only features are present (unless `--force-lossy` flag)
+- Enforce YAML 1.2 with explicit `%YAML 1.2` headers in all generated files
+- Add round-trip validation tests: XML → YAML → XML → compare with original
+- Document the "YAML superset compatibility matrix" showing which features export cleanly
 
 **Warning signs:**
-- Frozen dataclass fields typed as `list[...]` or `dict[...]` in type hints
-- Tests that mutate dataclass contents after construction
-- `object.__setattr__` appearing outside `__post_init__`
-- Intermittent test failures where data appears "changed" between function calls
+- Export succeeds but re-imported model has fewer features
+- Test cases validate YAML → SQL but not XML → YAML → XML
+- No explicit YAML version headers in spec files
+- Schema validation passes but semantic validation fails after export
 
 **Phase to address:**
-Phase 1 (Foundation) -- Establish the immutable data convention before any domain types are defined. Retrofitting tuple-based collections onto existing list-based dataclasses is painful.
+Phase 1 (YAML Schema Foundation) - establish the three-layer schema and export validation upfront
 
 ---
 
-### Pitfall 2: "No Classes" Rule Collides with Python's stdlib
+### Pitfall 2: Keyset Identity Delimiter Collision
 
 **What goes wrong:**
-The constraint says "no classes, pure functions + immutable data." But Python's stdlib and ecosystem assume OOP pervasively. Exceptions are classes. Context managers require `__enter__`/`__exit__`. `pathlib.Path` is a class. `argparse.ArgumentParser` returns namespace objects. Click uses decorator-based class registration. File handles are objects. The "no classes" rule creates constant friction with every stdlib interaction, leading to either: (a) creeping OOP through "allowed exceptions" that erode the constraint, or (b) awkward wrapper functions that obscure intent.
+The keyset identity format `entity@system~tenant|natural_key` breaks when natural keys contain delimiter characters (`@`, `~`, `|`). A product SKU like `ACME~2024|SPECIAL@OFFER` parses incorrectly, creating phantom entities or silently truncating keys. Escaping is inconsistent (some modules escape `@`, others don't), leading to parse failures in downstream SQL where the same key is interpreted differently.
 
 **Why it happens:**
-Python is fundamentally multi-paradigm with OOP deeply embedded. A strict "no classes" rule works in languages designed for it (Haskell, Clojure) but fights Python's grain. The rule's intent (immutability, testability, simplicity) is sound, but the implementation "zero classes" is too absolute for Python.
+Delimiter collision is inevitable when user-controlled data (natural keys) is combined with structured formats. Developers assume delimiters won't appear in business data or rely on "just escape it" without defining a canonical escaping scheme. The security implication (SQL injection via crafted keys) is overlooked.
 
 **How to avoid:**
-- Redefine the constraint precisely: "No behavior-bearing classes. Dataclasses/NamedTuples for data only (no methods except `__post_init__` for validation). All behavior lives in module-level pure functions. Stdlib classes used as-is at boundaries."
-- Create an explicit boundary layer: functions that accept/return stdlib objects (Path, argparse.Namespace) but convert to frozen dataclasses at the boundary.
-- Document the "allowed OOP" list: frozen dataclasses, NamedTuples, Exceptions, context managers via `contextlib.contextmanager`, and stdlib types.
-- For error handling: use a Result type pattern (tuple of `(value, error)` or a simple `Result` frozen dataclass) instead of raising exceptions inside pure functions. Reserve exceptions for truly exceptional I/O failures at boundaries.
+- Use content boundary delimiters: `<<ENTITY>>value<<SYSTEM>>value<<TENANT>>value<<KEY>>value`
+- Or use ASCII armor: base64-encode natural keys before embedding in keyset identity
+- Define a canonical escape sequence in schema: `@@` for `@`, `~~` for `~`, `||` for `|`
+- Implement a `KeysetIdentity` dataclass with `.parse()` and `.format()` methods (single source of truth)
+- Add property-based tests with randomly generated keys containing all delimiters
+- Reject keys containing delimiter sequences during validation phase (fail fast)
+- Document the escape scheme in YAML schema with examples
 
 **Warning signs:**
-- Increasing number of "exceptions to the no-classes rule"
-- Wrapper functions that do nothing but call a method on a stdlib object
-- Team debates about whether `@dataclass(frozen=True)` counts as "a class"
-- Test files importing classes despite the "no classes" rule
+- Integration tests use sanitized keys without special characters
+- Parsing code has multiple `split()` implementations across modules
+- No escape/unescape functions or inconsistent implementations
+- SQL errors with "unexpected character" in generated WHERE clauses
 
 **Phase to address:**
-Phase 1 (Foundation) -- Must be resolved before writing any code. The exact boundary between "functional core" and "imperative shell" must be defined in coding conventions.
+Phase 1 (YAML Schema Foundation) - define and enforce keyset identity format during schema validation
 
 ---
 
-### Pitfall 3: OpenCode.ai Platform Instability
+### Pitfall 3: Idempotent SQL Dialect Divergence
 
 **What goes wrong:**
-OpenCode releases approximately every 1-3 days (20 versions in two weeks as of early 2026). The platform is in early development with features that "may change, break, or be incomplete." Agent definition format, frontmatter fields, directory conventions, and the skill/plugin system are all actively evolving. The project scaffolds agent definitions into `.opencode/agents/` -- if OpenCode changes the agent format, directory structure, or registration mechanism, every user who ran `architect init` has stale/broken agent files in their project.
+SQL marked as "idempotent" works in PostgreSQL (`CREATE TABLE IF NOT EXISTS`) but fails in SQL Server (no IF NOT EXISTS before SQL Server 2016) or Oracle (different syntax). Generated scripts run successfully in dev (PostgreSQL) but error in production (Oracle), or succeed but create duplicate data due to different UPSERT semantics (INSERT ... ON CONFLICT in PostgreSQL vs MERGE in SQL Server vs INSERT /*+ IGNORE_ROW_ON_DUPKEY_INDEX */ in Oracle).
 
 **Why it happens:**
-OpenCode explicitly warns it is "not yet ready for production use." Recent changelog shows reverted features (Trinity model support removed), rapid iteration on agent prompting (developer messages vs. user messages), and active bugs in the plugin system. Targeting an unstable platform means building on shifting sand.
+Developers test with one dialect and assume idempotency patterns transfer. The nuances of behavior and syntax support across dialects are worse than expected - even "standard SQL" features have implementation differences. Template-based generation (Jinja2) makes it easy to generate syntactically correct but semantically wrong SQL for untested dialects.
 
 **How to avoid:**
-- Pin to a specific OpenCode version range in documentation. Test agent definitions against that version.
-- Implement an `architect update-agents` command that regenerates agent definitions in-place, preserving any user customizations (via merge strategy, not overwrite).
-- Keep agent definitions as thin as possible: minimal frontmatter, system prompt in the markdown body, no dependency on advanced features (skills, plugins, modes) until they stabilize.
-- Use only the documented stable features: `description`, `model`, `tools`, and markdown body content. Avoid `mode`, `plugins`, `hidden`, `steps`, and other fields marked experimental.
-- Abstract the agent format behind a Python data structure so the project can target multiple formats (OpenCode, Claude Code, Cursor) without rewriting agent logic.
-- Monitor the OpenCode changelog (`opencode.ai/changelog`) in CI -- at minimum, run agent validation tests against the latest OpenCode release weekly.
+- Build a dialect abstraction layer with explicit operations: `dialect.create_table_idempotent()`, `dialect.upsert_rows()`
+- Implement per-dialect test suites that verify idempotency (run twice, compare results)
+- Use tools like sqldef patterns: calculate diff between desired and current schema
+- Document dialect support matrix: which operations are supported per dialect with version requirements
+- For unsupported dialects, generate transactional scripts with explicit checks instead of failing silently
+- Add SQL linting that detects dialect-specific syntax in "dialect-agnostic" templates
 
 **Warning signs:**
-- OpenCode changelog entries that modify agent loading, frontmatter parsing, or directory discovery
-- User bug reports that `architect init` produces agents that OpenCode doesn't recognize
-- OpenCode renaming `.opencode/` directory conventions (they already support both singular and plural subdirectory names for backwards compatibility)
-- Agent features you depend on appearing in OpenCode's "experimental" section
+- Generated SQL only tested against one database
+- `IF EXISTS` or `IF NOT EXISTS` hardcoded in templates without dialect checks
+- No integration tests that verify scripts run successfully on target dialects
+- Template variables like `{{ create_table }}` without dialect dispatch logic
 
 **Phase to address:**
-Phase 1 (Foundation) -- Agent scaffolding is the core Milestone 1 deliverable. Must design for platform instability from day one. Include version detection and compatibility checking.
+Phase 2 (SQL Generation Engine) - implement dialect abstraction before generating any SQL
 
 ---
 
-### Pitfall 4: Scaffold Drift (Bundled Agent Templates vs. CLI Version)
+### Pitfall 4: Multi-Source Merge Conflict Mishandling
 
 **What goes wrong:**
-Users run `architect init` at version 1.0, which scaffolds agent definitions. Later, `architect` updates to version 2.0 with improved agents (better prompts, new debate patterns, fixed methodology rules). Users who already ran `init` have stale v1.0 agents. There is no upgrade path. Users don't know their agents are outdated. The CLI version and agent version diverge silently.
+When the same anchor is fed by multiple staging tables (e.g., Customer from CRM and ERP), the system generates SQL that silently drops conflicting updates, loads data in non-deterministic order (last-write-wins with undefined "last"), or creates duplicate records when natural keys collide across sources. Policy-based conflict resolution ("CRM wins for email, ERP wins for address") is hardcoded in SQL instead of declared in YAML, making it impossible to audit or modify without regenerating code.
 
 **Why it happens:**
-Scaffolding tools generate files and then abandon them. Unlike a library (where updating the dependency updates behavior), scaffolded files are owned by the user's project. The CLI has no mechanism to detect, diff, or update previously scaffolded files. This is the fundamental tension of scaffold-based tools: generate once vs. keep current.
+Multi-source scenarios are treated as "just another data load" instead of requiring explicit conflict resolution strategy. Developers assume source systems have non-overlapping natural keys or that timestamp-based resolution is sufficient. The complexity of attribute-level conflict rules (different policies per attribute) is underestimated.
 
 **How to avoid:**
-- Embed a version marker in every scaffolded file: `<!-- warehouse-architect: v1.2.0 -->` in agent markdown frontmatter or as a comment.
-- Implement `architect check` command that: reads version markers from scaffolded files, compares against current CLI version, reports which agents are outdated and what changed.
-- Implement `architect update-agents` that: shows a diff of what will change, applies updates to non-customized files, flags conflicts in user-customized files (like git merge conflicts).
-- Use a layered architecture: scaffolded agents `{% include %}` or reference shared instructions from a central file that CAN be updated independently. Keep user customizations in a separate file that imports the base.
-- Never put methodology rules directly in agent prompts. Put them in a `references/` file that agents read at runtime. Updating references doesn't require re-scaffolding.
+- Require explicit conflict resolution strategy in YAML schema per anchor-source pair:
+  ```yaml
+  anchors:
+    - name: Customer
+      sources:
+        - system: CRM
+          priority: 1
+          wins_for: [email, phone]
+        - system: ERP
+          priority: 2
+          wins_for: [billing_address, credit_limit]
+      default_strategy: reject_conflict  # fail loudly
+  ```
+- Generate SQL with explicit conflict detection logging (write conflicts to audit table)
+- Implement deterministic ordering: sort sources by declared priority, then by system name
+- For timestamp-based resolution, require explicit valid-time vs transaction-time semantics
+- Add validation: detect when sources have overlapping `wins_for` attributes (configuration error)
+- Generate conflict reports during load: "10 Customer records had conflicting emails (CRM won)"
 
 **Warning signs:**
-- Users reporting different behavior with same business inputs (different agent versions)
-- No version marker in scaffolded files
-- `architect init` overwrites without prompting when run twice
-- Agent definitions containing inline methodology rules instead of referencing external documents
+- No conflict resolution strategy in YAML schema
+- Generated SQL has `INSERT` without conflict handling
+- Integration tests use non-overlapping source data (no actual conflicts tested)
+- No audit trail of which source won for each attribute
 
 **Phase to address:**
-Phase 1 (Foundation) -- Design the scaffolding system with update-ability from the start. Retrofitting version tracking onto existing scaffolded files requires a migration.
+Phase 3 (Multi-Source Staging) - design conflict resolution schema before implementing merge logic
 
 ---
 
-### Pitfall 5: Dynamic Git-Tag Versioning Breaks in CI/CD
+### Pitfall 5: Anchor Modeling Mnemonic Naming Collisions
 
 **What goes wrong:**
-The project uses dynamic versioning from git tags (no hardcoded version strings). This works locally but fails in CI/CD when: (a) GitHub Actions checkout uses `fetch-depth: 1` (shallow clone, no tags), (b) the build happens on a Dependabot PR with no tag context, (c) `uv build` is run in a detached HEAD state after checkout, (d) the version falls back to `0.0.0` silently and publishes a broken package to PyPI.
+Automatically generated mnemonics create collisions: `Customer` → `CU`, `Currency` → `CU`, leading to table name conflicts like `CU_Name` (Customer.Name attribute or Currency.Name?). The 30-character Oracle limit forces aggressive truncation (`VeryLongAnchorName_VeryLongAttributeName` → unreadable hash), making generated SQL impossible to debug. Mnemonic generation is non-deterministic across runs (depends on parse order), causing schema drift.
 
 **Why it happens:**
-Dynamic versioning (setuptools-scm, uv-dynamic-versioning, hatch-vcs) relies on git metadata that CI environments don't always provide. Shallow clones lack tag history. Detached HEAD states confuse tag resolution. The fallback version mechanism is meant to prevent build failures but can silently publish incorrect versions.
+Mnemonic generation algorithms prioritize brevity over uniqueness. The "first two letters" heuristic works until it doesn't. Developers don't reserve mnemonics for knots/anchors separately. Oracle's 30-character limit (older versions) interacts poorly with verbose Anchor Modeling naming conventions (MA_delim_identity patterns).
 
 **How to avoid:**
-- Configure GitHub Actions with `fetch-depth: 0` (full clone) AND `fetch-tags: true` in the checkout step.
-- Set a fallback version in `pyproject.toml` that is obviously wrong (e.g., `fallback-version = "0.0.0.dev0+unknown"`) so accidental publishes are immediately visible.
-- Add a CI validation step that checks the resolved version matches the git tag before publishing: `python -c "from importlib.metadata import version; v = version('warehouse-architect'); assert v != '0.0.0.dev0+unknown', f'Bad version: {v}'"`.
-- Never publish from a workflow that doesn't trigger on a tag push. Use `on: push: tags: ['v*']` as the publish trigger.
-- Test the version resolution in a separate CI job before the publish job.
-- Use `uv-dynamic-versioning` (latest 0.13.0) which is designed for uv/hatch projects specifically, rather than `setuptools-scm` which may have compatibility issues with uv's build system.
+- Implement collision detection: track used mnemonics in a registry during parse phase
+- Use conflict resolution: `Customer` → `CU`, `Currency` → `CY` (fall back to first+last letter)
+- Allow explicit mnemonic override in YAML:
+  ```yaml
+  anchors:
+    - name: Customer
+      mnemonic: CUS  # override auto-generation
+  ```
+- Enforce deterministic generation: sort entities by name before assigning mnemonics
+- For Oracle, implement intelligent truncation with collision detection (append `_1`, `_2` if truncated names collide)
+- Validate against target database identifier length limits during schema validation
+- Generate mnemonic collision report during validation phase
 
 **Warning signs:**
-- Local `uv build` produces correct version but CI produces `0.0.0`
-- Published packages on TestPyPI with version `0.0.0.dev0` or similar
-- CI logs showing "tag not found" or "no version detected" warnings
-- Version mismatch between `__version__` and the package metadata version
+- No collision detection in mnemonic generation code
+- Mnemonics generated during SQL generation (too late to detect conflicts)
+- No support for explicit mnemonic overrides
+- Tests don't verify deterministic mnemonic generation across multiple runs
 
 **Phase to address:**
-Phase 1 (Foundation) -- CI/CD pipeline setup. Must be validated with a TestPyPI publish before the first real release.
+Phase 1 (YAML Schema Foundation) - validate mnemonic uniqueness during schema parse, before SQL generation
 
 ---
 
-### Pitfall 6: Anchor Modeling Over-Application (6NF Performance Traps)
+### Pitfall 6: Bruin Asset YAML Frontmatter Malformation
 
 **What goes wrong:**
-Applying Anchor Modeling's 6NF decomposition universally creates an explosion of tables. A single business entity like "Customer" becomes 10-15 tables (one per attribute). Queries require massive joins that modern optimizers cannot always eliminate. Performance degrades catastrophically on databases that don't support join elimination. Cognitive overhead makes the system unmaintainable.
+Generated Bruin asset files have invalid YAML frontmatter: missing required fields (`type`, `name`), incorrect dependency format (string instead of array), or frontmatter not separated from SQL body. Bruin CLI rejects files or silently ignores assets. Materialization strategy (`table`, `view`, `incremental`) doesn't match the generated SQL semantics (SQL has `CREATE OR REPLACE VIEW` but frontmatter says `type: table`).
 
 **Why it happens:**
-Anchor Modeling's theoretical elegance is appealing. The agents may recommend 6NF for everything because the methodology rules say to. Teams read that "modern databases use join elimination" and assume it works universally. They apply 6NF to reference data, dimensions that never change, and concepts that don't need temporal tracking.
+Bruin asset format is treated as "YAML with SQL appended" instead of a structured schema. Developers hand-craft templates without validating against Bruin's schema. Dependency format (`depends: [AssetA, AssetB]` vs `dependencies: [{name: AssetA}]`) is ambiguous in documentation. The frontmatter/SQL separation requirement (requires `---` delimiter or specific line count) is implicit.
 
 **How to avoid:**
-- Encode selective application criteria in the Data Architect agent's prompt: "Use Anchor Modeling for temporal, frequently-changing business entities ONLY. Use traditional modeling for static reference data, lookup tables, and rarely-changing dimensions."
-- Set a table count budget per entity (e.g., max 7-10 tables). If exceeded, the Veteran Reviewer agent must flag it.
-- Require the debate to explicitly justify 6NF for each entity: "Entity X uses Anchor because attributes change independently at different rates."
-- Use knot tables for static reference data with low cardinality instead of full anchor treatment.
-- Include performance testing guidance in generated specs: "Test join elimination on target database before committing to this design."
+- Parse Bruin's official schema (if available) or reverse-engineer from examples
+- Implement Bruin asset dataclass with required fields: `name`, `type`, `owner`, `dependencies`, `materialization`
+- Validate generated assets with Bruin CLI in CI: `bruin validate .`
+- Add schema validation: check that materialization strategy matches SQL DDL verbs
+  - `CREATE TABLE` → `materialization: table`
+  - `CREATE VIEW` → `materialization: view`
+  - `CREATE OR REPLACE` + time-based filter → `materialization: incremental`
+- Generate frontmatter with explicit YAML library, not string concatenation
+- Document Bruin asset template with all required/optional fields and examples
 
 **Warning signs:**
-- Single entity queries joining 15+ tables
-- Agents recommending anchors for lookup/reference data
-- No knot tables in the model (everything is an anchor)
-- Performance complaints on generated schemas
+- Frontmatter generated via f-strings: `f"name: {name}\ntype: {type}\n---\n{sql}"`
+- No Bruin CLI validation in tests
+- Materialization field hardcoded to single value for all assets
+- Dependency format varies across generated files
 
 **Phase to address:**
-Phase 3 (Anchor Modeling) per the roadmap. Build selective application criteria into agent prompts and validation rules.
+Phase 2 (SQL Generation Engine) - implement Bruin asset schema before generating first asset file
 
 ---
 
-### Pitfall 7: LLM Intent Errors in Agent Debate Output
+### Pitfall 7: Pure-Functional Python State Leakage in Generator
 
 **What goes wrong:**
-AI agents in the debate produce modeling recommendations that sound correct but contain subtle errors: wrong entity classification (attribute vs. anchor), incorrect temporal strategy, relationships that don't match the business domain, or hallucinated entities from the LLM's training data that don't exist in the user's business. The debate process validates internal consistency but not external correctness.
+Code generation functions mutate global state (shared mnemonic registry, SQL dialect settings), causing tests to fail non-deterministically depending on execution order. Caching "optimizations" (cache generated SQL for reuse) break when YAML schema changes mid-session. Generator functions have side effects (writing to filesystem during "validation"), violating pure-functional constraints and making it impossible to test generation logic without I/O.
 
 **Why it happens:**
-LLMs pattern-match against common data models they've seen (e-commerce, CRM, ERP). When under-specified, they fill gaps with plausible-sounding but incorrect elements. The System Analyst and Business Analyst agents may debate vigorously but both start from the same flawed assumption. Multi-agent debate validates coherence, not truth.
+Stateful patterns are natural for code generation (build up context, emit code incrementally). Developers add mutable registries for performance without considering thread-safety or test isolation. TDD discipline erodes when stateful helpers are added outside test coverage.
 
 **How to avoid:**
-- Require the Data Architect agent to trace every modeling element to a specific user input (business description, source schema field, or business question). No untraceable elements.
-- Include a "domain verification" step in the debate: "List all entities. For each, cite the exact user input that justifies its existence."
-- Have the Veteran Reviewer specifically check for hallucinated elements: "Flag any entity, attribute, or relationship not explicitly mentioned or directly derivable from user inputs."
-- Implement a controlled vocabulary: agents can only use terms from the user's domain glossary, not introduce new terminology.
-- Present debate output to the user with explicit traceability: "Customer anchor justified by: business description paragraph 2, source schema CRM.customers table."
+- All generator functions return new immutable objects: `generate_sql(schema: Schema) -> GeneratedSQL`
+- Use immutable data structures (dataclasses with `frozen=True`, or pyrsistent library)
+- Thread context through function parameters instead of globals:
+  ```python
+  def generate_anchor_sql(anchor: Anchor, context: GenerationContext) -> tuple[str, GenerationContext]:
+      # Returns updated context without mutation
+  ```
+- Separate pure logic (generate AST) from I/O effects (write files):
+  ```python
+  def generate_code(schema: Schema) -> dict[str, str]:  # pure
+      return {"file1.sql": "...", "file2.sql": "..."}
+
+  def write_files(files: dict[str, str], output_dir: Path):  # impure
+      for name, content in files.items():
+          (output_dir / name).write_text(content)
+  ```
+- Add property-based tests that verify pure functions: same input always produces same output
+- Use pytest fixtures to reset any shared state between tests (fail tests if state detected)
 
 **Warning signs:**
-- Agents introducing entities the user never mentioned
-- Standard-sounding elements (user_preferences, audit_log) without business justification
-- Debate reaching consensus quickly (no genuine disagreement)
-- Agent output using generic terminology instead of the user's domain language
+- Generator functions modify parameters or global variables
+- Tests have `setUp` methods that reset global state
+- Generator functions call `Path.write_text()` directly instead of returning content
+- Tests fail when run in different order or parallelized
 
 **Phase to address:**
-Phase 1 (Foundation) -- Traceability and domain verification must be built into the debate protocol from the start.
+Phase 2 (SQL Generation Engine) - establish pure-functional architecture before implementing complex generators
 
 ---
 
-### Pitfall 8: Multi-Agent Infinite Debate Loops
+### Pitfall 8: YAML Schema Validation Escape Hatches
 
 **What goes wrong:**
-System Analyst and Business Analyst agents get stuck in circular disagreement, consuming tokens without converging. Agents repeat similar arguments, make trivial modifications, or oscillate between two positions. The user waits while agents burn context window and API costs without producing a decision.
+YAML schema validation is implemented but has "temporary" bypass flags (`--skip-validation`) that become permanent. Invalid YAML passes validation because any construct not explicitly forbidden is allowed (YAML's flexibility). Users embed arbitrary Python expressions in YAML comments (`# {{ __import__('os').system('rm -rf /') }}`), which are later eval'd during template rendering, creating remote code execution vulnerabilities.
 
 **Why it happens:**
-Without bounded iterations, convergence metrics, or mediator tie-breaking, agents lack mechanisms to break deadlock. OpenCode agents are user-driven (not orchestrated by the CLI), so there is no automated circuit breaker. The agents' instructions must encode debate termination logic in their prompts.
+Schema validation is added late, after YAML files exist in the wild, forcing backward compatibility. The "be liberal in what you accept" philosophy leads to under-specification. Jinja2 template injection risks are underestimated when YAML is treated as "just configuration data."
 
 **How to avoid:**
-- Encode maximum debate rounds in the Data Architect agent's instructions: "After 3 rounds of debate without convergence, synthesize the best elements from both positions and present a recommendation with explicit tradeoffs."
-- Include convergence detection in agent prompts: "If the System Analyst and Business Analyst are repeating the same arguments, escalate to the user for a decision."
-- Give the Veteran Reviewer tie-breaking authority: "If debate has not converged after review, the Veteran Reviewer makes a binding recommendation."
-- Design debate artifacts so each round must introduce NEW information or arguments. Repeating a previous argument signals convergence failure.
+- Define explicit schema with closed-world assumption: only explicitly allowed constructs are valid
+- Use schema validation library (Yamale, Pydantic) with strict mode
+- Reject unknown fields, not just warn: `additionalProperties: false` in JSON Schema terms
+- Never eval/exec YAML content or embed it in Jinja2 templates without sanitization
+- Use Jinja2 sandboxed environment if YAML content is rendered in templates
+- Add schema versioning: reject YAML without explicit schema version header
+- Remove validation bypass flags or make them require explicit confirmation (not just CLI flag)
+- Implement schema evolution policy: how to deprecate fields, migrate old YAML
 
 **Warning signs:**
-- Debate transcripts showing repeated similar critiques across rounds
-- Agent responses getting longer without new substance
-- Users reporting "stuck" agents that keep going back and forth
-- Token consumption for a single modeling decision exceeding budget
+- Schema validation has many warnings but no errors
+- `--skip-validation` flag exists in production code
+- YAML parsing code uses `yaml.unsafe_load()` instead of `yaml.safe_load()`
+- Comments in YAML are preserved and processed instead of stripped
 
 **Phase to address:**
-Phase 1 (Foundation) -- Debate termination logic must be in agent prompts from day one. Cannot be added retroactively without rewriting all agent definitions.
+Phase 1 (YAML Schema Foundation) - enforce strict validation from day one, no bypass flags
+
+---
+
+### Pitfall 9: Temporal Data INSERT Idempotency Failure
+
+**What goes wrong:**
+Generated INSERT statements for temporal/bitemporal attributes are not truly idempotent. Re-running the script creates duplicate historical records with identical valid-time ranges but different transaction-times, or overwrites history when correcting errors (losing audit trail). Temporal corrections (updating "what we believed in the past") require complex SQL that is buggy - closed intervals overlap, gaps appear in history.
+
+**Why it happens:**
+Idempotency for temporal data requires understanding four datetime dimensions: valid-from, valid-to, transaction-from, transaction-to. Developers implement "simple" idempotency (INSERT ... ON CONFLICT DO NOTHING) which ignores temporal semantics. The distinction between correcting current state vs correcting historical state is collapsed into one code path.
+
+**How to avoid:**
+- For uni-temporal (valid-time only): use UPSERT with valid-time key matching:
+  ```sql
+  INSERT ... ON CONFLICT (anchor_id, valid_from, valid_to) DO UPDATE SET value = EXCLUDED.value
+  ```
+- For bitemporal: never UPDATE, only INSERT with new transaction-time (preserves correction audit trail)
+- Implement temporal assertion helpers in SQL generation:
+  - Assert no overlapping valid-time ranges for same anchor+attribute
+  - Assert no gaps in required-continuous attributes
+- Generate separate SQL for "load new data" vs "correct historical data" operations
+- Add temporal integrity tests: verify idempotent script maintains temporal constraints
+- Document temporal semantics in generated SQL comments:
+  ```sql
+  -- Idempotent: safe to rerun, will update only if valid-time range matches exactly
+  ```
+
+**Warning signs:**
+- INSERT statements for temporal attributes lack ON CONFLICT clauses
+- No tests verify temporal constraint preservation after multiple runs
+- Generated SQL treats all attributes uniformly (no temporal vs non-temporal distinction)
+- Temporal corrections require manual SQL instead of regenerating from YAML
+
+**Phase to address:**
+Phase 2 (SQL Generation Engine) - implement temporal-aware idempotency patterns for attribute INSERT generation
+
+---
+
+### Pitfall 10: Integration Test Data Unrealism
+
+**What goes wrong:**
+Integration tests use sanitized "happy path" data: no special characters in keys, no source conflicts, no long names hitting identifier limits, no YAML edge cases (multi-line strings, unicode). Tests pass but production fails immediately on real data: customer names with apostrophes break SQL, product SKUs with delimiters crash parser, long German compound nouns exceed Oracle limits.
+
+**Why it happens:**
+Test data is manually crafted to be "clean" and demonstrate core functionality. Property-based testing (generating random, adversarial inputs) is perceived as overkill. Integration tests focus on "does it work" not "what breaks it."
+
+**How to avoid:**
+- Adopt property-based testing with Hypothesis library:
+  ```python
+  @given(st.text(alphabet=st.characters()), st.text(alphabet=st.characters()))
+  def test_keyset_identity_roundtrip(entity, system):
+      keyset = KeysetIdentity.format(entity, system, "tenant", "key")
+      parsed = KeysetIdentity.parse(keyset)
+      assert parsed.entity == entity
+  ```
+- Create adversarial test dataset:
+  - Names: `O'Brien`, `Robert'); DROP TABLE anchors;--`, `مُحَمَّد`
+  - Keys: `KEY@WITH~DELIMS|HERE`, `  spaces  `, empty string
+  - Long names: 100+ character identifiers
+  - YAML edge cases: `!!python/object` tags, `---` in values, tab-based indentation
+- Run integration tests against all supported database dialects in CI
+- Add fuzzing: generate random YAML and verify parser doesn't crash
+- Test failure modes: intentionally malformed YAML, conflicting multi-source data, invalid mnemonics
+
+**Warning signs:**
+- All test YAML files have ASCII-only, alphanumeric identifiers
+- No property-based tests or fuzzing
+- Integration tests only run against SQLite or PostgreSQL
+- Test data doesn't include known problematic patterns (SQL injection strings, unicode, etc.)
+
+**Phase to address:**
+Phase 1 (YAML Schema Foundation) - establish property-based testing for parser/validator before building on top
 
 ---
 
@@ -220,32 +336,25 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Using `list` in frozen dataclasses | Natural Python, no friction | Shallow immutability, mutation bugs | Never -- use `tuple` from day one |
-| Allowing classes "just for this one thing" | Quick fix for stdlib integration | Erosion of functional constraint, inconsistent codebase | Only at documented boundary layer |
-| Hardcoding OpenCode agent format | Faster scaffolding implementation | Locked to one platform, no portability | Early prototype only, refactor by Phase 1 end |
-| Skipping `architect update-agents` | Simpler initial release | Users stuck on stale agents, no upgrade path | v0.1 only, must ship update before v1.0 |
-| Inline methodology rules in prompts | Easier to write agent definitions | Rules duplicated across agents, inconsistent updates | Never -- extract to reference files |
-| Publishing without version validation | Simpler CI pipeline | Silent 0.0.0 publishes to PyPI | Never -- add validation step immediately |
-| Skipping TestPyPI dry run | Faster release cycle | Broken packages discovered by users on real PyPI | Never -- always test on TestPyPI first |
-| Using `dict` for spec data | Flexible, no schema overhead | No type safety, silent key errors, untestable | Prototype only, migrate to frozen dataclasses immediately |
-| Mocking stdlib in tests | Easier to isolate pure functions | Tests pass but integration breaks, mock drift | Only for I/O boundaries, never for pure logic |
+| Single-dialect SQL generation (PostgreSQL only) | Fast MVP, simpler templates | Vendor lock-in, costly migration for customers | Only if target dialect is contractually guaranteed |
+| String-based SQL generation (f-strings) | Simple to implement, readable | SQL injection risks, no syntax validation | Never for user-controlled data |
+| YAML validation warnings (not errors) | Backward compatibility with existing files | Invalid YAML passes through, runtime failures | Migration period with sunset date |
+| Hardcoded conflict resolution (CRM always wins) | Avoids complex configuration schema | Inflexible, requires code changes per customer | Single-customer deployments only |
+| Mutable global mnemonic registry | Simpler code, "stateful makes sense here" | Thread-unsafe, test isolation issues, breaks TDD | Never in pure-functional codebase |
+| Skipping temporal idempotency tests | Faster test suite | Silent data corruption in production | Never (temporal bugs are expensive) |
+| Template-based Bruin asset generation (no validation) | Quick initial implementation | Bruin CLI rejects files, debugging nightmare | Prototype phase only, must add validation before MVP |
 
 ## Integration Gotchas
 
-Common mistakes when connecting to external services and platforms.
+Common mistakes when connecting to external services.
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| OpenCode agent discovery | Assuming `.opencode/agents/` is the only location | OpenCode merges from multiple locations (global, project, env var). Test with all discovery paths. |
-| OpenCode agent format | Using advanced frontmatter fields (`steps`, `plugins`, `hidden`) | Stick to stable fields: `description`, `model`, `tools`, `permission`, `color`. Avoid experimental features. |
-| UV build system | Using `setuptools-scm` with UV/Hatchling backend | Use `uv-dynamic-versioning` which is designed for UV/Hatch projects. setuptools-scm may conflict with Hatchling. |
-| PyPI trusted publishing | Using reusable GitHub Actions workflows | Trusted publishing does not work from reusable workflows. Must use a non-reusable workflow with `id-token: write` permission. |
-| PyPI publishing | Building and publishing in the same job | Separate build and publish into different jobs. Prevents privilege escalation with trusted publishing. |
-| Git shallow clone in CI | `fetch-depth: 1` (default) loses tag history | Use `fetch-depth: 0` and `fetch-tags: true` for dynamic versioning. |
-| YAML spec files | Using PyYAML's `yaml.load()` without `Loader` | Always use `yaml.safe_load()`. `yaml.load()` executes arbitrary Python code. |
-| Makefile venv activation | `source .venv/bin/activate` in Makefile recipe | Each recipe runs in a new shell. Use `.venv/bin/python` or `.venv/bin/pytest` directly. |
-| Package data in wheel | Expecting non-Python files to be included automatically | Explicitly configure package data in `pyproject.toml`. Inspect built wheel with `zipinfo` before publishing. |
-| Agent file encoding | Assuming UTF-8 for all markdown agent files | Explicitly set encoding. Windows users may have different defaults. |
+| Official Anchor XML Parser | Assume valid XML equals valid Anchor model | Validate Anchor Modeling semantics separately (e.g., anchors must have identities, attributes reference existing anchors) |
+| Bruin CLI | Generate assets but never run `bruin validate` | Add Bruin validation to CI pipeline |
+| Database Dialects | Test SQL with Python sqlite3 module | Test against actual target database (PostgreSQL, SQL Server, Oracle) with same version as production |
+| YAML Parser | Use `yaml.load()` (unsafe) for convenience | Always use `yaml.safe_load()` to prevent code execution |
+| Jinja2 Templates | Render user-controlled YAML data directly | Use sandboxed environment or escape all user input |
 
 ## Performance Traps
 
@@ -253,51 +362,52 @@ Patterns that work at small scale but fail as usage grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| frozen dataclass 2.4x instantiation overhead | Slow spec processing with many entities | Profile early. Consider `NamedTuple` for hot paths. Use `__slots__=True` with frozen dataclasses. | 100+ entity specs with nested structures |
-| `dataclasses.replace()` deep copy chain | Creating new objects for every small change | Batch updates with builder pattern (accumulate changes, create once) | Specs with 50+ attributes being modified iteratively |
-| Recursive pure functions without tail call optimization | Stack overflow on deeply nested specs | Python has no TCO. Use iterative solutions with explicit stacks for tree traversals. | Spec hierarchies deeper than ~1000 levels |
-| String template concatenation for SQL generation | Memory pressure with large schemas | Use streaming/generator-based template rendering | Schemas with 500+ tables |
-| Loading all agent definitions into memory | Slow `architect init` on resource-constrained machines | Lazy loading, generate one agent at a time | Not a real risk at current scale (6 agents) |
+| Load all anchors into memory before generation | Simple code, works fine | Stream YAML parsing, generate SQL per-anchor | >1000 anchors or >100MB YAML file |
+| Generate single monolithic SQL file | Easy to review, one script to run | Split by anchor/entity, parallel generation | >10K lines SQL, slow execution |
+| Revalidate entire schema on every change | Thorough validation | Incremental validation (only changed anchors) | >100 entities, slow feedback loop |
+| String concatenation for SQL generation | Simple implementation | Use SQL builder library or AST | >1000 lines generated SQL, unreadable output |
+| Synchronous database validation (test idempotency) | Straightforward test code | Parallel test execution per dialect | >10 test cases per dialect |
 
 ## Security Mistakes
 
-Domain-specific security issues beyond general concerns.
+Domain-specific security issues beyond general web security.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| YAML spec files containing database credentials | Credentials committed to git, exposed in generated SQL | Validate specs contain no credential-like strings. Use environment variable references in connection configs. |
-| Agent prompts containing proprietary methodology details | Methodology IP exposed in user's `.opencode/` directory | Keep methodology rules at appropriate abstraction level. Detailed IP stays in the CLI package, not scaffolded files. |
-| Generated SQL with string interpolation | SQL injection if generated DDL is used in dynamic contexts | All generated SQL should use parameterized patterns. Never interpolate user strings into DDL templates. |
-| PyPI package with embedded API keys | API keys published to public PyPI | Pre-commit hook scanning for secrets. CI step to scan built wheel. Never store credentials in source. |
-| OpenCode agents reading arbitrary filesystem paths | Agent reads sensitive files outside project scope | Limit agent tool permissions in frontmatter. Use `permission: ask` for filesystem operations outside project root. |
+| Eval YAML comments as Jinja2 templates | Remote code execution | Strip comments, never eval user content |
+| No SQL sanitization in keyset identities | SQL injection via crafted natural keys | Use parameterized queries, validate key format |
+| Expose YAML superset features in exported XML | Data exfiltration via hidden YAML fields | Audit export, warn on lossy conversion |
+| Trust mnemonic uniqueness without validation | Table name collision, data corruption | Enforce unique mnemonics in schema validation |
+| Use yaml.unsafe_load for "flexibility" | Arbitrary Python object instantiation | Always use yaml.safe_load |
+| Store database credentials in YAML | Credential leakage in version control | Use environment variables, separate config |
 
 ## UX Pitfalls
 
-Common user experience mistakes for CLI scaffolding tools.
+Common user experience mistakes in this domain.
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| `architect init` overwrites without warning | User loses customized agent definitions | Check for existing `.opencode/agents/`, prompt before overwrite, offer `--force` flag |
-| No feedback during scaffolding | User thinks command hung | Print each file as it's created: "Created .opencode/agents/data-architect.md" |
-| Unclear which OpenCode version is required | Agents fail with cryptic errors on wrong OpenCode version | Print required OpenCode version after init. Check OpenCode version if detectable. |
-| `architect generate` fails with unhelpful error on missing specs | "FileNotFoundError" on first use | Check for spec files first, print: "No specs found. Run your agents in OpenCode first to produce specs." |
-| Version mismatch between CLI and scaffolded agents | Silent behavior differences | `architect check` command that validates agent version markers against CLI version |
-| No way to preview what `init` will create | Users wary of running commands that modify their project | `architect init --dry-run` showing what files would be created/modified |
+| Silent lossy XML export | User loses YAML-only features without warning | Explicit warning with list of dropped features |
+| Cryptic mnemonic collision errors | "CU already exists" - which entity? | "Mnemonic 'CU' collision: Customer vs Currency" |
+| No conflict resolution visibility | User doesn't know which source won | Generate conflict report: "CRM won 45/100 conflicts" |
+| Regenerate all SQL on schema change | Slow feedback, unnecessary churn | Incremental generation (only changed entities) |
+| Generic "invalid YAML" errors | User can't locate error | Line numbers, YAML path, expected vs actual |
+| No preview mode for SQL generation | User must commit to see output | `--dry-run` flag showing generated SQL without writing |
 
 ## "Looks Done But Isn't" Checklist
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **Frozen dataclasses:** All fields are frozen -- verify nested collections are immutable types (tuple, frozenset), not list/dict
-- [ ] **Agent scaffolding:** Files created in `.opencode/agents/` -- verify OpenCode actually loads and recognizes them by running OpenCode with the agents
-- [ ] **Dynamic versioning:** `uv build` produces correct version locally -- verify CI produces correct version too (test with shallow clone, detached HEAD, no tags)
-- [ ] **PyPI package:** Installs with `pip install` -- verify it also installs with `uv pip install` and that the `architect` console script entry point works
-- [ ] **Makefile `check` target:** Runs lint+type+test -- verify it fails fast on first error and reports which step failed
-- [ ] **Agent debate termination:** Max rounds configured -- verify agents actually stop (test by providing contradictory inputs that force disagreement)
-- [ ] **Pure functional code:** No classes in module -- verify dataclasses used for data only (no methods beyond `__post_init__`), no class inheritance
-- [ ] **Spec validation:** Schema validates all fields -- verify generators actually use all validated fields (no silently ignored fields)
-- [ ] **Template version markers:** Present in scaffolded files -- verify `architect check` actually reads and compares them
-- [ ] **Package wheel contents:** Code is included -- verify non-Python files (agent templates, reference docs) are also included by inspecting with `zipinfo`
+- [ ] **YAML Parser:** Often missing explicit version header enforcement - verify parser rejects YAML 1.1 documents
+- [ ] **Keyset Identity:** Often missing escape sequence handling - verify round-trip with delimiter characters
+- [ ] **SQL Generation:** Often missing dialect-specific idempotency - verify scripts work on all target databases
+- [ ] **Multi-Source Merge:** Often missing conflict logging - verify audit trail of resolution decisions
+- [ ] **Mnemonic Generation:** Often missing determinism - verify same YAML produces same mnemonics across runs
+- [ ] **Bruin Assets:** Often missing frontmatter validation - verify Bruin CLI accepts generated files
+- [ ] **Temporal SQL:** Often missing bitemporal correction logic - verify UPDATE history preserves audit trail
+- [ ] **XML Export:** Often missing lossy conversion warnings - verify user is informed of dropped features
+- [ ] **Pure Functions:** Often missing immutability enforcement - verify no global state mutation
+- [ ] **Integration Tests:** Often missing adversarial data - verify tests include special characters, long names, unicode
 
 ## Recovery Strategies
 
@@ -305,16 +415,16 @@ When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Shallow immutability bugs | MEDIUM | Audit all frozen dataclasses for mutable fields. Replace `list` with `tuple`, `dict` with `types.MappingProxyType` or frozen dataclass. Update all construction sites. |
-| "No classes" rule erosion | LOW | Audit codebase for class definitions. Extract behavior to module functions. Convert data classes to frozen dataclasses. Document the boundary layer. |
-| OpenCode format breaking change | MEDIUM | Update agent templates in CLI. Ship new CLI version. Users run `architect update-agents`. Provide migration guide. |
-| Scaffold drift (stale agents) | MEDIUM | Implement `architect update-agents` retroactively. Add version markers to existing files via migration script. |
-| CI publishes wrong version | HIGH | Yank the bad version from PyPI (`pip install --yank`). Fix CI pipeline. Re-tag and re-publish. Communicate to users. Cannot un-publish from PyPI, only yank. |
-| 6NF over-application | MEDIUM-HIGH | Identify low-change entities. Consolidate to traditional modeling. Keep 6NF for genuinely temporal entities. Regenerate from updated specs. |
-| LLM intent errors in debate | MEDIUM | Add traceability requirements to agent prompts. Re-run debates with updated instructions. Validate output against user inputs. |
-| Infinite debate loops | LOW | Add max round limits to agent prompts. Implement convergence detection. Restart with mediator tie-breaking. |
-| Dynamic versioning silent fallback | LOW | Add version validation to CI. Fix shallow clone. Re-build with correct tags. |
-| Missing package data in wheel | LOW | Update `pyproject.toml` package data config. Rebuild and re-publish. |
+| Lossy XML Export | MEDIUM | Warn user, offer YAML-to-YAML migration tool, document unsupported features |
+| Keyset Identity Collision | HIGH | Implement escape sequences retroactively, migrate existing data with new encoding |
+| Idempotent SQL Failure | HIGH | Implement per-dialect abstractions, regenerate all SQL, test against all databases |
+| Multi-Source Conflicts | MEDIUM | Add conflict resolution schema, regenerate with explicit strategy, audit existing data |
+| Mnemonic Collisions | LOW | Allow manual override, regenerate with deterministic algorithm, update schema |
+| Bruin Asset Malformation | LOW | Implement schema validation, regenerate assets, test with Bruin CLI |
+| State Leakage | MEDIUM | Refactor to pure functions, add immutability checks, expand test coverage |
+| Schema Validation Bypass | HIGH | Remove bypass flags, enforce strict validation, migrate invalid YAML |
+| Temporal Idempotency Failure | HIGH | Rewrite temporal SQL generation, add constraint validation, audit historical data |
+| Unrealistic Test Data | MEDIUM | Add property-based tests, create adversarial dataset, expand dialect coverage |
 
 ## Pitfall-to-Phase Mapping
 
@@ -322,70 +432,78 @@ How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Shallow immutability | Phase 1: Foundation | Lint rule or mypy plugin flags `list`/`dict` in frozen dataclasses |
-| "No classes" rule collision | Phase 1: Foundation | Coding conventions document with explicit boundary layer definition |
-| OpenCode platform instability | Phase 1: Foundation | Agent definitions tested against pinned OpenCode version in CI |
-| Scaffold drift | Phase 1: Foundation | Version markers in every scaffolded file, `architect check` command |
-| Dynamic versioning CI failure | Phase 1: Foundation | CI validation step confirms version before publish; TestPyPI dry run passes |
-| Anchor Modeling over-application | Phase 3: Anchor Modeling | Selective application criteria in agent prompts; table count budget per entity |
-| LLM intent errors | Phase 1: Foundation | Traceability requirement in debate protocol; verification step in agent flow |
-| Infinite debate loops | Phase 1: Foundation | Max round limits in agent prompts; convergence detection instructions |
-| Spec-generator drift | Phase 4: Code Generation | Schema validation on all specs; validate-only mode in generators |
-| Missing historization strategy | Phase 2: CLP Workflow | Historization decided at conceptual level; checkpoint validates temporal strategy |
-| PyPI publishing errors | Phase 1: Foundation | Trusted publisher configured; separate build/publish jobs; version validation |
-| Package content errors | Phase 1: Foundation | Wheel inspection step in CI; install-and-test step before publish |
+| Lossy XML-YAML Transformation | Phase 1: YAML Schema Foundation | Round-trip tests: XML → YAML → XML equality |
+| Keyset Identity Delimiter Collision | Phase 1: YAML Schema Foundation | Property-based tests with random delimiter-heavy strings |
+| Idempotent SQL Dialect Divergence | Phase 2: SQL Generation Engine | Multi-dialect integration tests (PostgreSQL, SQL Server, Oracle) |
+| Multi-Source Merge Conflict Mishandling | Phase 3: Multi-Source Staging | Integration tests with intentional conflicts, verify audit logs |
+| Anchor Modeling Mnemonic Naming Collisions | Phase 1: YAML Schema Foundation | Determinism tests (same YAML → same mnemonics), collision detection |
+| Bruin Asset YAML Frontmatter Malformation | Phase 2: SQL Generation Engine | `bruin validate` in CI pipeline |
+| Pure-Functional Python State Leakage | Phase 2: SQL Generation Engine | Immutability tests, parallelized test execution |
+| YAML Schema Validation Escape Hatches | Phase 1: YAML Schema Foundation | Strict schema enforcement, no bypass flags in codebase |
+| Temporal Data INSERT Idempotency Failure | Phase 2: SQL Generation Engine | Idempotency tests (run script twice, verify single result set) |
+| Integration Test Data Unrealism | Phase 1: YAML Schema Foundation | Hypothesis property-based tests, adversarial dataset |
 
 ## Sources
 
-**Pure Functional Python:**
-- [Functional Programming HOWTO -- Python 3.14 docs](https://docs.python.org/3/howto/functional.html)
-- [When are classes (thinking OOP) too much? -- Python Discussions](https://discuss.python.org/t/when-are-classes-thinking-oop-too-much/77026)
-- [Python as functional programming language -- Python Discussions](https://discuss.python.org/t/python-as-functional-programming-language/38402)
-- [Avoiding Common Pitfalls in Python Functional Programming -- Moldstud](https://moldstud.com/articles/p-avoiding-common-pitfalls-in-python-functional-programming-with-practical-tips-and-insights)
-- [Functional vs Imperative Programming in Python -- Medium](https://medium.com/@denis.volokh/functional-vs-imperative-programming-in-python-a-practical-guide-aba1eb40652d)
+### Anchor Modeling
+- [Anchor Modeling Support](https://www.anchormodeling.com/support/) - MEDIUM confidence
+- [Anchor Modeling - Wikipedia](https://en.wikipedia.org/wiki/Anchor_modeling) - MEDIUM confidence
+- [Anchor Modeling Naming Convention PDF](https://www.anchormodeling.com/wp-content/uploads/2010/09/AM-Naming.pdf) - HIGH confidence (attempted but 403 error)
 
-**Frozen Dataclass Immutability:**
-- [dataclasses -- Python 3.14 docs](https://docs.python.org/3/library/dataclasses.html)
-- [Statically enforcing frozen data classes -- Redowan's Reflections](https://rednafi.com/python/statically-enforcing_frozen_dataclasses/)
-- [How to achieve Partial Immutability with Python? -- Medium](https://noklam-data.medium.com/how-to-achieve-partial-immutability-with-python-dataclasses-or-attrs-0baa0d818898)
-- [Semi-immutable Python objects with frozen dataclasses -- TestDriven.io](https://testdriven.io/tips/671b59e7-ba72-4201-82d4-473c8e594c55/)
-- [Static-only frozen data classes -- Python Discussions](https://discuss.python.org/t/static-only-frozen-data-classes-or-other-ways-to-avoid-runtime-overhead/46968)
+### YAML and Schema Validation
+- [The YAML Document from Hell](https://ruudvanasseldonk.com/2023/01/11/the-yaml-document-from-hell) - HIGH confidence
+- [JSON is not a YAML subset](https://john-millikin.com/json-is-not-a-yaml-subset) - HIGH confidence
+- [Yamale - Schema validator for YAML](https://github.com/23andMe/Yamale) - MEDIUM confidence
 
-**OpenCode.ai Platform:**
-- [Agents -- OpenCode Docs](https://opencode.ai/docs/agents/)
-- [Config -- OpenCode Docs](https://opencode.ai/docs/config/)
-- [OpenCode Changelog](https://opencode.ai/changelog)
-- [OpenCode GitHub](https://github.com/opencode-ai/opencode)
-- [OpenCode: an Open-source AI Coding Agent -- InfoQ](https://www.infoq.com/news/2026/02/opencode-coding-agent/)
-- [Agent System -- DeepWiki](https://deepwiki.com/sst/opencode/3.2-agent-system)
+### SQL Generation and Dialects
+- [Idempotent SQL DDL](https://medium.com/full-stack-architecture/idempotent-sql-ddl-ca354a1eee62) - HIGH confidence
+- [sqldef - Idempotent schema management](https://github.com/sqldef/sqldef) - MEDIUM confidence
+- [AI SQL Generation: Dialect-specific syntax errors](https://gavinray97.github.io/blog/overcoming-dialect-sql-generation-limits) - MEDIUM confidence
 
-**UV / Dynamic Versioning:**
-- [uv-dynamic-versioning -- PyPI](https://pypi.org/project/uv-dynamic-versioning/)
-- [How to add dynamic versioning to uv projects -- PyDevTools](https://pydevtools.com/handbook/how-to/how-to-add-dynamic-versioning-to-uv-projects/)
-- [UV Python Package Manager Quirks -- Plotly Blog](https://plotly.com/blog/uv-python-package-manager-quirks/)
-- [FR: uv build accepts a dynamic package version argument -- GitHub Issue](https://github.com/astral-sh/uv/issues/8714)
-- [Dynamic versioning with pyproject.toml -- GitHub Discussion](https://github.com/pypa/setuptools/discussions/3630)
+### Multi-Source Data Integration
+- [Data level conflicts resolution for multi-sources heterogeneous databases](https://www.researchgate.net/publication/313545369_Data_level_conflicts_resolution_for_multi-sources_heterogeneous_databases) - MEDIUM confidence
+- [Conflict resolution strategies in Data Synchronization](https://mobterest.medium.com/conflict-resolution-strategies-in-data-synchronization-2a10be5b82bc) - MEDIUM confidence
 
-**PyPI Publishing:**
-- [Publishing with GitHub Actions CI/CD -- Python Packaging Guide](https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/)
-- [Common Python Packaging Mistakes -- jwodder](https://jwodder.github.io/kbits/posts/pypkg-mistakes/)
-- [PyPI Trusted Publisher Troubleshooting -- PyPI Docs](https://docs.pypi.org/trusted-publishers/troubleshooting/)
-- [pypa/gh-action-pypi-publish -- GitHub](https://github.com/pypa/gh-action-pypi-publish)
+### Bruin Data Pipeline
+- [Bruin Asset Definition Schema](https://bruin-data.github.io/bruin/assets/definition-schema.html) - HIGH confidence
+- [Bruin CLI GitHub](https://github.com/bruin-data/bruin) - HIGH confidence
 
-**TDD with Functional Python:**
-- [Chicago and London TDD Styles for Functional Programming -- DEV](https://dev.to/jesterxl/chicago-and-london-tdd-styles-for-functional-programming-455h)
-- [Modern Test-Driven Development in Python -- TestDriven.io](https://testdriven.io/blog/modern-tdd/)
+### Delimiter Collision and Parsing
+- [Delimiter Collision - Wikipedia](https://en.wikipedia.org/wiki/Delimiter_collision) - HIGH confidence
+- [Data Parsing: Delimiters, Encodings, and Edge Cases](https://rvrsh3ll.net/data-parsing-in-the-real-world-delimiters-encodings-and-edge-cases) - MEDIUM confidence
 
-**Data Warehouse Design:**
-- [6 data warehouse design mistakes to avoid -- Computer Weekly](https://www.computerweekly.com/tip/6-data-warehouse-design-mistakes-to-avoid)
-- [Anchor Modeling -- Wikipedia](https://en.wikipedia.org/wiki/Anchor_modeling)
-- [Anchor Modeling -- Official Site](https://www.anchormodeling.com/)
+### Idempotency in Data Engineering
+- [Core Data Engineering: Idempotency](https://medium.com/@danthelion/core-data-engineering-idempotency-3f5b8d782cd) - MEDIUM confidence
+- [How to make data pipelines idempotent](https://www.startdataengineering.com/post/why-how-idempotent-data-pipeline/) - MEDIUM confidence
+- [Idempotency in Data Engineering](https://blog.dataengineerthings.org/idempotency-in-data-engineering-why-it-matters-and-how-to-embrace-it-ec3fb0aec118) - MEDIUM confidence
 
-**Error Handling in Functional Python:**
-- [Python Functors and Monads -- ArjanCodes](https://arjancodes.com/blog/python-functors-and-monads/)
-- [Beyond Try-Except: Python's Frontier of Error Handling -- PyConES 2024](https://pretalx.com/pycones-2024/talk/7TKB3L/)
+### Temporal and Bitemporal Data
+- [Bitemporal History - Martin Fowler](https://martinfowler.com/articles/bitemporal-history.html) - HIGH confidence
+- [Bitemporal Data Modeling: How to Learn from History](https://www.dataversity.net/bitemporal-data-modeling-learn-history/) - MEDIUM confidence
+- [Bitemporal Modeling - Wikipedia](https://en.wikipedia.org/wiki/Bitemporal_modeling) - MEDIUM confidence
+
+### Surrogate Keys and Natural Keys
+- [A complete guide to surrogate keys](https://www.getdbt.com/blog/guide-to-surrogate-key) - MEDIUM confidence
+- [Surrogate Key vs Natural Key Differences](https://www.mssqltips.com/sqlservertip/5431/surrogate-key-vs-natural-key-differences-and-when-to-use-in-sql-server/) - MEDIUM confidence
+
+### Data Vault Naming Conventions
+- [Data Vault 2.0 Suggested Object Naming Conventions](https://datavaultalliance.com/news/dv/dv-standards/data-vault-2-0-suggested-object-naming-conventions/) - MEDIUM confidence
+- [Data Vault Naming Standards](https://patrickcuba.medium.com/data-vault-naming-standards-76c93413d3c7) - MEDIUM confidence
+
+### Python Functional Programming
+- [Pyrsistent - Persistent/Immutable data structures](https://github.com/tobgu/pyrsistent) - HIGH confidence
+- [Functional Programming in Python: Immutable data structures](https://opensource.com/article/18/10/functional-programming-python-immutable-data-structures) - MEDIUM confidence
+- [Core Functional Programming Principles for Python](https://arjancodes.com/blog/functional-programming-principles-in-python/) - MEDIUM confidence
+
+### Jinja2 Security
+- [Python vulnerabilities: Code execution in Jinja templates](https://podalirius.net/en/articles/python-vulnerabilities-code-execution-in-jinja-templates/) - HIGH confidence
+- [SSTI Vulnerability in Jinja2](https://github.com/thautwarm/vscode-diana/issues/1) - MEDIUM confidence
+
+### Test-Driven Development
+- [Test-Driven Development for Code Generation](https://arxiv.org/abs/2402.13521) - MEDIUM confidence
+- [TDD and Functional Programming in TypeScript](https://adam.fanello.net/tdd-and-fp-study) - MEDIUM confidence
 
 ---
-*Pitfalls research for: Python CLI + OpenCode.ai Agents for Data Warehouse Design*
-*Researched: 2026-02-07 (post-pivot)*
-*Confidence: MEDIUM-HIGH -- Python functional programming pitfalls verified against official docs and community sources; OpenCode instability verified against live changelog; UV/versioning pitfalls verified against official issues and PyDevTools; Anchor Modeling pitfalls carried forward from pre-pivot research with HIGH confidence*
+*Pitfalls research for: DAB Code Generator (YAML-to-SQL for Anchor Modeling)*
+*Researched: 2026-02-09*
+*Overall confidence: MEDIUM - Most findings verified through multiple sources, but Anchor Modeling specific issues have fewer authoritative sources*
