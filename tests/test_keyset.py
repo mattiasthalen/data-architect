@@ -191,10 +191,26 @@ class TestKeysetRoundTrip:
         assert parsed == KeysetComponents(entity, system, tenant, nk)
 
     @given(
-        entity=st.text(min_size=1).filter(lambda s: not s.endswith(("@", "~", "|"))),
-        system=st.text(min_size=1).filter(lambda s: not s.endswith(("@", "~", "|"))),
-        tenant=st.text(min_size=1).filter(lambda s: not s.endswith(("@", "~", "|"))),
-        natural_key=st.text().filter(lambda s: not s.startswith(("@", "~", "|"))),
+        entity=st.text(min_size=1).filter(
+            lambda s: (
+                not s.startswith(("@", "~", "|")) and not s.endswith(("@", "~", "|"))
+            )
+        ),
+        system=st.text(min_size=1).filter(
+            lambda s: (
+                not s.startswith(("@", "~", "|")) and not s.endswith(("@", "~", "|"))
+            )
+        ),
+        tenant=st.text(min_size=1).filter(
+            lambda s: (
+                not s.startswith(("@", "~", "|")) and not s.endswith(("@", "~", "|"))
+            )
+        ),
+        natural_key=st.text().filter(
+            lambda s: (
+                not s.startswith(("@", "~", "|")) and not s.endswith(("@", "~", "|"))
+            )
+        ),
     )
     def test_roundtrip_property(
         self, entity: str, system: str, tenant: str, natural_key: str

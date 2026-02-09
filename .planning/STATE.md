@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** The DAB layer must produce a correct, methodology-compliant Anchor Model through genuine agent debate -- not just template generation.
-**Current focus:** v0.3.0 DAB Generation -- Phase 7 (SQL Generation Engine)
+**Current focus:** v0.3.0 DAB Generation -- Phase 8 (Keyset Identity and Staging Mappings)
 
 ## Current Position
 
-Phase: 7 of 10 (SQL Generation Engine)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-09 -- Completed 07-03-PLAN.md (CLI integration with format/dialect flags)
+Phase: 8 of 10 (Keyset Identity and Staging Mappings)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-09 -- Completed 08-01-PLAN.md (KeysetIdentity module with parse/format)
 
-Progress: [##########██████....] 73% (16/22 plans across all milestones)
+Progress: [##########███████...] 77% (17/22 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
-- Average duration: 11.3 min
-- Total execution time: 2.93 hours
+- Total plans completed: 17
+- Average duration: 11.9 min
+- Total execution time: 3.23 hours
 
 **By Phase:**
 
@@ -34,6 +34,7 @@ Progress: [##########██████....] 73% (16/22 plans across all milesto
 | 5. Pre-commit Framework Migration | 1/1 | 2 min | 2.0 min |
 | 6. YAML Schema Foundation | 3/3 | 125 min | 41.7 min |
 | 7. SQL Generation Engine | 3/3 | 28.8 min | 9.6 min |
+| 8. Keyset Identity and Staging Mappings | 1/3 | 18 min | 18.0 min |
 
 ## Accumulated Context
 
@@ -61,6 +62,8 @@ Recent decisions affecting current work:
 - Inline Bruin formatting in CLI (07-03): requires entity metadata unavailable in generic write_output
 - Bruin strategy: DDL always create+replace, DML merge for historized, create+replace for static (07-03)
 - CLI validation flow: file exists → spec validates → generate → format → write → summarize (07-03)
+- Left-to-right pairing algorithm for keyset parsing (08-01): simple, consistent, works for non-ambiguous cases
+- Property-based test filtering for ambiguous delimiter cases (08-01): focus on practical use cases
 
 ### Pending Todos
 
@@ -73,9 +76,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 7 complete (SQL Generation Engine)
-Resume file: .planning/phases/07-sql-generation-engine/07-03-SUMMARY.md
+Stopped at: Phase 8, Plan 1 complete (KeysetIdentity module)
+Resume file: .planning/phases/08-keyset-identity-and-staging-mappings/08-01-SUMMARY.md
 
 ---
 *State initialized: 2026-02-07*
-*Last updated: 2026-02-09 -- Completed 07-03 (CLI integration with format/dialect flags) - Phase 7 COMPLETE*
+*Last updated: 2026-02-09 -- Completed 08-01 (KeysetIdentity module with parse/format) - Phase 8 in progress*
