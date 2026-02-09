@@ -1,7 +1,19 @@
 """DDL AST builder functions for all Anchor Model entity types."""
 
+import sqlglot as sg
 import sqlglot.expressions as sge
 
+from data_architect.generation.columns import (
+    build_bitemporal_columns,
+    build_metadata_columns,
+)
+from data_architect.generation.naming import (
+    anchor_table_name,
+    attribute_table_name,
+    knot_table_name,
+    staging_table_name,
+    tie_table_name,
+)
 from data_architect.models.anchor import Anchor, Attribute
 from data_architect.models.knot import Knot
 from data_architect.models.spec import Spec
@@ -18,7 +30,27 @@ def build_anchor_table(anchor: Anchor, dialect: str) -> sge.Create:
     Returns:
         SQLGlot Create AST node with IF NOT EXISTS
     """
-    raise NotImplementedError
+    columns = [
+        # 1. Identity column (PK)
+        sge.ColumnDef(
+            this=sg.to_identifier(f"{anchor.mnemonic}_ID"),
+            kind=sge.DataType.build(anchor.identity, dialect=dialect),
+            constraints=[sge.ColumnConstraint(kind=sge.PrimaryKeyColumnConstraint())],
+        ),
+        # 2. Metadata columns (always present)
+        *build_metadata_columns(dialect),
+    ]
+
+    table_name = anchor_table_name(anchor)
+
+    return sge.Create(
+        kind="TABLE",
+        this=sge.Schema(
+            this=sge.Table(this=sg.to_identifier(table_name)),
+            expressions=columns,
+        ),
+        exists=True,  # IF NOT EXISTS (idempotent per GEN-04)
+    )
 
 
 def build_attribute_table(
@@ -34,7 +66,55 @@ def build_attribute_table(
     Returns:
         SQLGlot Create AST node with IF NOT EXISTS
     """
-    raise NotImplementedError
+    columns = [
+        # 1. Anchor FK column (NOT NULL)
+        sge.ColumnDef(
+            this=sg.to_identifier(f"{anchor.mnemonic}_ID"),
+            kind=sge.DataType.build(anchor.identity, dialect=dialect),
+            constraints=[sge.ColumnConstraint(kind=sge.NotNullColumnConstraint())],
+        ),
+    ]
+
+    # 2. Value column (either dataRange or knotRange FK)
+    if attribute.data_range:
+        # Direct value column
+        value_col_name = (
+            f"{anchor.mnemonic}_{attribute.mnemonic}_"
+            f"{anchor.descriptor}_{attribute.descriptor}"
+        )
+        columns.append(
+            sge.ColumnDef(
+                this=sg.to_identifier(value_col_name),
+                kind=sge.DataType.build(attribute.data_range, dialect=dialect),
+            )
+        )
+    elif attribute.knot_range:
+        # FK to knot
+        knot_fk_name = f"{attribute.knot_range}_ID"
+        columns.append(
+            sge.ColumnDef(
+                this=sg.to_identifier(knot_fk_name),
+                kind=sge.DataType.build("bigint", dialect=dialect),
+            )
+        )
+
+    # 3. Bitemporal columns (only if historized)
+    if attribute.time_range is not None:
+        columns.extend(build_bitemporal_columns(dialect))
+
+    # 4. Metadata columns (always present)
+    columns.extend(build_metadata_columns(dialect))
+
+    table_name = attribute_table_name(anchor, attribute)
+
+    return sge.Create(
+        kind="TABLE",
+        this=sge.Schema(
+            this=sge.Table(this=sg.to_identifier(table_name)),
+            expressions=columns,
+        ),
+        exists=True,  # IF NOT EXISTS
+    )
 
 
 def build_knot_table(knot: Knot, dialect: str) -> sge.Create:
@@ -47,7 +127,32 @@ def build_knot_table(knot: Knot, dialect: str) -> sge.Create:
     Returns:
         SQLGlot Create AST node with IF NOT EXISTS
     """
-    raise NotImplementedError
+    columns = [
+        # 1. Identity column (PK)
+        sge.ColumnDef(
+            this=sg.to_identifier(f"{knot.mnemonic}_ID"),
+            kind=sge.DataType.build(knot.identity, dialect=dialect),
+            constraints=[sge.ColumnConstraint(kind=sge.PrimaryKeyColumnConstraint())],
+        ),
+        # 2. Value column
+        sge.ColumnDef(
+            this=sg.to_identifier(f"{knot.mnemonic}_{knot.descriptor}"),
+            kind=sge.DataType.build(knot.data_range, dialect=dialect),
+        ),
+        # 3. Metadata columns (always present, no bitemporal for knots)
+        *build_metadata_columns(dialect),
+    ]
+
+    table_name = knot_table_name(knot)
+
+    return sge.Create(
+        kind="TABLE",
+        this=sge.Schema(
+            this=sge.Table(this=sg.to_identifier(table_name)),
+            expressions=columns,
+        ),
+        exists=True,  # IF NOT EXISTS
+    )
 
 
 def build_tie_table(tie: Tie, dialect: str) -> sge.Create:
@@ -60,7 +165,35 @@ def build_tie_table(tie: Tie, dialect: str) -> sge.Create:
     Returns:
         SQLGlot Create AST node with IF NOT EXISTS
     """
-    raise NotImplementedError
+    columns = []
+
+    # 1. Role FK columns (one per role)
+    for role in tie.roles:
+        role_fk_name = f"{role.type_}_ID_{role.role}"
+        columns.append(
+            sge.ColumnDef(
+                this=sg.to_identifier(role_fk_name),
+                kind=sge.DataType.build("bigint", dialect=dialect),
+            )
+        )
+
+    # 2. Bitemporal columns (only if historized)
+    if tie.time_range is not None:
+        columns.extend(build_bitemporal_columns(dialect))
+
+    # 3. Metadata columns (always present)
+    columns.extend(build_metadata_columns(dialect))
+
+    table_name = tie_table_name(tie)
+
+    return sge.Create(
+        kind="TABLE",
+        this=sge.Schema(
+            this=sge.Table(this=sg.to_identifier(table_name)),
+            expressions=columns,
+        ),
+        exists=True,  # IF NOT EXISTS
+    )
 
 
 def build_staging_table(
@@ -76,7 +209,28 @@ def build_staging_table(
     Returns:
         SQLGlot Create AST node with IF NOT EXISTS
     """
-    raise NotImplementedError
+    column_defs = []
+
+    # 1. User-defined columns
+    for col_name, col_type in columns:
+        column_defs.append(
+            sge.ColumnDef(
+                this=sg.to_identifier(col_name),
+                kind=sge.DataType.build(col_type, dialect=dialect),
+            )
+        )
+
+    # 2. Metadata columns (always present)
+    column_defs.extend(build_metadata_columns(dialect))
+
+    return sge.Create(
+        kind="TABLE",
+        this=sge.Schema(
+            this=sge.Table(this=sg.to_identifier(name)),
+            expressions=column_defs,
+        ),
+        exists=True,  # IF NOT EXISTS
+    )
 
 
 def generate_all_ddl(spec: Spec, dialect: str) -> dict[str, str]:
@@ -89,4 +243,52 @@ def generate_all_ddl(spec: Spec, dialect: str) -> dict[str, str]:
     Returns:
         Dictionary mapping filenames to SQL strings
     """
-    raise NotImplementedError
+    output: dict[str, str] = {}
+
+    # 1. Knots (sorted by mnemonic for determinism)
+    for knot in sorted(spec.knots, key=lambda k: k.mnemonic):
+        ast = build_knot_table(knot, dialect)
+        filename = f"{knot_table_name(knot)}.sql"
+        output[filename] = ast.sql(dialect=dialect, pretty=True)
+
+    # 2. Anchors (sorted by mnemonic)
+    for anchor in sorted(spec.anchors, key=lambda a: a.mnemonic):
+        # Anchor table
+        ast = build_anchor_table(anchor, dialect)
+        filename = f"{anchor_table_name(anchor)}.sql"
+        output[filename] = ast.sql(dialect=dialect, pretty=True)
+
+        # Attribute tables (sorted by mnemonic)
+        for attr in sorted(anchor.attributes, key=lambda at: at.mnemonic):
+            ast = build_attribute_table(anchor, attr, dialect)
+            filename = f"{attribute_table_name(anchor, attr)}.sql"
+            output[filename] = ast.sql(dialect=dialect, pretty=True)
+
+    # 3. Ties (sorted by table name for determinism)
+    sorted_ties = sorted(spec.ties, key=lambda t: tie_table_name(t))
+    for tie in sorted_ties:
+        ast = build_tie_table(tie, dialect)
+        filename = f"{tie_table_name(tie)}.sql"
+        output[filename] = ast.sql(dialect=dialect, pretty=True)
+
+    # 4. Staging tables (GEN-10: from anchor.staging_mappings)
+    staging_tables: dict[str, tuple[str, list[tuple[str, str]]]] = {}
+
+    for anchor in spec.anchors:
+        if anchor.staging_mappings:
+            for mapping in anchor.staging_mappings:
+                table = staging_table_name(mapping)
+                # Extract columns from mapping
+                columns = [
+                    (col["name"], col["type"]) for col in mapping.get("columns", [])
+                ]
+                staging_tables[table] = (table, columns)
+
+    # Generate staging DDL in sorted order
+    for table in sorted(staging_tables.keys()):
+        name, columns = staging_tables[table]
+        ast = build_staging_table(name, columns, dialect)
+        filename = f"{name}.sql"
+        output[filename] = ast.sql(dialect=dialect, pretty=True)
+
+    return output

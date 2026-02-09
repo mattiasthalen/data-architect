@@ -16,7 +16,7 @@ def anchor_table_name(anchor: Anchor) -> str:
     Returns:
         Table name in format: {mnemonic}_{descriptor}
     """
-    raise NotImplementedError
+    return f"{anchor.mnemonic}_{anchor.descriptor}"
 
 
 def attribute_table_name(anchor: Anchor, attribute: Attribute) -> str:
@@ -30,7 +30,10 @@ def attribute_table_name(anchor: Anchor, attribute: Attribute) -> str:
         Table name in format:
         {anchor_mnemonic}_{attr_mnemonic}_{anchor_descriptor}_{attr_descriptor}
     """
-    raise NotImplementedError
+    return (
+        f"{anchor.mnemonic}_{attribute.mnemonic}_"
+        f"{anchor.descriptor}_{attribute.descriptor}"
+    )
 
 
 def knot_table_name(knot: Knot) -> str:
@@ -42,7 +45,7 @@ def knot_table_name(knot: Knot) -> str:
     Returns:
         Table name in format: {mnemonic}_{descriptor}
     """
-    raise NotImplementedError
+    return f"{knot.mnemonic}_{knot.descriptor}"
 
 
 def tie_table_name(tie: Tie) -> str:
@@ -54,7 +57,14 @@ def tie_table_name(tie: Tie) -> str:
     Returns:
         Table name composed from sorted role types and names
     """
-    raise NotImplementedError
+    # Sort roles by (type_, role) for determinism
+    sorted_roles = sorted(tie.roles, key=lambda r: (r.type_, r.role))
+
+    # Build name from sorted roles: type1_type2_role1_role2
+    types = "_".join(r.type_ for r in sorted_roles)
+    roles = "_".join(r.role for r in sorted_roles)
+
+    return f"{types}_{roles}"
 
 
 def staging_table_name(mapping: dict[str, Any]) -> str:
@@ -66,4 +76,5 @@ def staging_table_name(mapping: dict[str, Any]) -> str:
     Returns:
         Table name from mapping["table"]
     """
-    raise NotImplementedError
+    table: str = mapping["table"]
+    return table
