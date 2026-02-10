@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** The DAB layer must produce a correct, methodology-compliant Anchor Model through genuine agent debate -- not just template generation.
-**Current focus:** v0.3.0 DAB Generation -- Phase 8 (Keyset Identity and Staging Mappings)
+**Current focus:** v0.3.0 DAB Generation -- Phase 8.1 (Staging Keyset Single Source of Truth)
 
 ## Current Position
 
-Phase: 8 of 10 (Keyset Identity and Staging Mappings)
-Plan: 4 of 4 in current phase (COMPLETE)
-Status: Phase complete - all gaps closed
-Last activity: 2026-02-10 -- Phase 8 gap closure complete (keyset identity and column mappings integrated into DML)
+Phase: 8.1 of 10 (Staging Keyset Single Source of Truth)
+Plan: 1 of 2 in current phase (IN PROGRESS)
+Status: Plan 08.1-01 complete (keyset_id computed column in staging DDL)
+Last activity: 2026-02-10 -- Plan 08.1-01: Keyset computed column added to staging DDL
 
-Progress: [##########██████████] 91% (20/22 plans across all milestones)
+Progress: [##########██████████] 91% (21/24 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
-- Average duration: 11.3 min
-- Total execution time: 3.90 hours
+- Total plans completed: 21
+- Average duration: 10.9 min
+- Total execution time: 4.00 hours
 
 **By Phase:**
 
@@ -35,6 +35,7 @@ Progress: [##########██████████] 91% (20/22 plans across all
 | 6. YAML Schema Foundation | 3/3 | 125 min | 41.7 min |
 | 7. SQL Generation Engine | 3/3 | 28.8 min | 9.6 min |
 | 8. Keyset Identity and Staging Mappings | 4/4 | 37.8 min | 9.5 min |
+| 8.1 Staging Keyset Single Source of Truth | 1/2 | 6 min | 6.0 min |
 
 ## Accumulated Context
 
@@ -73,6 +74,9 @@ Recent decisions affecting current work:
 - Per-source MERGE generation (08-03): one MERGE statement per staging mapping with deterministic ordering
 - Keyset identity in DML (08-04): _build_metadata_id_expr() helper encapsulates keyset vs fallback logic
 - Column mapping in attributes (08-04): staging_value_col lookup with AS aliasing for explicit lineage
+- SQLGlot ComputedColumnConstraint transpiles correctly (08.1-01): postgres GENERATED ALWAYS AS, tsql/snowflake AS...PERSISTED
+- Composite key delimiter escaping after concatenation (08.1-01): build_composite_natural_key_expr() handles ':' separator
+- Backward compatibility via optional parameters (08.1-01): anchor/mapping default to None in build_staging_table()
 
 ### Pending Todos
 
@@ -84,15 +88,15 @@ None.
 
 ### Blockers/Concerns
 
-None - Phase 8 complete with all gaps closed.
+None.
 
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Phase 8 complete - gap closure plan 08-04 executed successfully
-Resume file: .planning/phases/08-keyset-identity-and-staging-mappings/08-04-SUMMARY.md
-Next action: Phase 8 complete. Ready to proceed to Phase 9 or project completion.
+Stopped at: Plan 08.1-01 complete (keyset_id computed column in staging DDL)
+Resume file: .planning/phases/08.1-staging-keyset-single-source-of-truth/08.1-01-SUMMARY.md
+Next action: Execute plan 08.1-02 (DML simplification using staging.keyset_id)
 
 ---
 *State initialized: 2026-02-07*
-*Last updated: 2026-02-10 -- Phase 8 complete: keyset identity and column mappings integrated into DML generation*
+*Last updated: 2026-02-10 -- Plan 08.1-01 complete: keyset_id computed column added to staging DDL*
