@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 8.1 of 10 (Staging Keyset Single Source of Truth)
-Plan: 1 of 2 in current phase (IN PROGRESS)
-Status: Plan 08.1-01 complete (keyset_id computed column in staging DDL)
-Last activity: 2026-02-10 -- Plan 08.1-01: Keyset computed column added to staging DDL
+Plan: 2 of 2 in current phase (COMPLETE)
+Status: Phase 08.1 complete (staging keyset single source of truth)
+Last activity: 2026-02-10 -- Plan 08.1-02: DML simplified to reference staging.keyset_id
 
-Progress: [##########██████████] 91% (21/24 plans across all milestones)
+Progress: [##########██████████] 92% (22/24 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
-- Average duration: 10.9 min
-- Total execution time: 4.00 hours
+- Total plans completed: 22
+- Average duration: 10.5 min
+- Total execution time: 4.07 hours
 
 **By Phase:**
 
@@ -35,7 +35,7 @@ Progress: [##########██████████] 91% (21/24 plans across all
 | 6. YAML Schema Foundation | 3/3 | 125 min | 41.7 min |
 | 7. SQL Generation Engine | 3/3 | 28.8 min | 9.6 min |
 | 8. Keyset Identity and Staging Mappings | 4/4 | 37.8 min | 9.5 min |
-| 8.1 Staging Keyset Single Source of Truth | 1/2 | 6 min | 6.0 min |
+| 8.1 Staging Keyset Single Source of Truth | 2/2 | 10 min | 5.0 min |
 
 ## Accumulated Context
 
@@ -77,6 +77,9 @@ Recent decisions affecting current work:
 - SQLGlot ComputedColumnConstraint transpiles correctly (08.1-01): postgres GENERATED ALWAYS AS, tsql/snowflake AS...PERSISTED
 - Composite key delimiter escaping after concatenation (08.1-01): build_composite_natural_key_expr() handles ':' separator
 - Backward compatibility via optional parameters (08.1-01): anchor/mapping default to None in build_staging_table()
+- DML references staging.keyset_id column (08.1-02): single source of truth instead of inline computation
+- PostgreSQL templates use source alias (08.1-02): consistent with tsql/snowflake templates
+- Static DO UPDATE SET uses EXCLUDED pattern (08.1-02): cleaner than re-computing expressions
 
 ### Pending Todos
 
@@ -93,10 +96,10 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Plan 08.1-01 complete (keyset_id computed column in staging DDL)
-Resume file: .planning/phases/08.1-staging-keyset-single-source-of-truth/08.1-01-SUMMARY.md
-Next action: Execute plan 08.1-02 (DML simplification using staging.keyset_id)
+Stopped at: Phase 08.1 complete (staging keyset single source of truth)
+Resume file: .planning/phases/08.1-staging-keyset-single-source-of-truth/08.1-02-SUMMARY.md
+Next action: Begin Phase 9 planning or continue v0.3.0 DAB generation
 
 ---
 *State initialized: 2026-02-07*
-*Last updated: 2026-02-10 -- Plan 08.1-01 complete: keyset_id computed column added to staging DDL*
+*Last updated: 2026-02-10 -- Phase 08.1 complete: staging keyset single source of truth*
