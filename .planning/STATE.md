@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 8 of 10 (Keyset Identity and Staging Mappings)
-Plan: 3 of 3 in current phase
-Status: Gaps found (15/18 truths verified - 2 critical gaps)
-Last activity: 2026-02-09 -- Phase 8 execution complete, verification found missing keyset integration in DML
+Plan: 4 of 4 in current phase (COMPLETE)
+Status: Phase complete - all gaps closed
+Last activity: 2026-02-10 -- Phase 8 gap closure complete (keyset identity and column mappings integrated into DML)
 
-Progress: [##########██████████] 86% (19/22 plans across all milestones)
+Progress: [##########██████████] 91% (20/22 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
-- Average duration: 11.7 min
-- Total execution time: 3.78 hours
+- Total plans completed: 20
+- Average duration: 11.3 min
+- Total execution time: 3.90 hours
 
 **By Phase:**
 
@@ -34,7 +34,7 @@ Progress: [##########██████████] 86% (19/22 plans across all
 | 5. Pre-commit Framework Migration | 1/1 | 2 min | 2.0 min |
 | 6. YAML Schema Foundation | 3/3 | 125 min | 41.7 min |
 | 7. SQL Generation Engine | 3/3 | 28.8 min | 9.6 min |
-| 8. Keyset Identity and Staging Mappings | 3/3 | 30.8 min | 10.3 min |
+| 8. Keyset Identity and Staging Mappings | 4/4 | 37.8 min | 9.5 min |
 
 ## Accumulated Context
 
@@ -71,6 +71,8 @@ Recent decisions affecting current work:
 - Multi-source conflict resolution (08-03): priority (lower wins), then alphabetical by system/tenant
 - Multi-source file naming (08-03): system suffix for 2+ sources, no suffix for single-source
 - Per-source MERGE generation (08-03): one MERGE statement per staging mapping with deterministic ordering
+- Keyset identity in DML (08-04): _build_metadata_id_expr() helper encapsulates keyset vs fallback logic
+- Column mapping in attributes (08-04): staging_value_col lookup with AS aliasing for explicit lineage
 
 ### Pending Todos
 
@@ -78,19 +80,15 @@ None.
 
 ### Blockers/Concerns
 
-**Phase 8 Gaps (Critical):**
-1. Keyset identity NOT integrated into DML generation - build_keyset_expr() exists but not imported/called in dml.py
-2. Column mappings not used in DML SELECT - mapping.column_mappings exists but not used in build_attribute_merge()
-
-See: .planning/phases/08-keyset-identity-and-staging-mappings/08-VERIFICATION.md for full gap analysis
+None - Phase 8 complete with all gaps closed.
 
 ## Session Continuity
 
-Last session: 2026-02-09
-Stopped at: Phase 8 execution complete with gaps found (15/18 truths verified)
-Resume file: .planning/phases/08-keyset-identity-and-staging-mappings/08-VERIFICATION.md
-Next action: /gsd:plan-phase 8 --gaps (close integration gaps before proceeding to Phase 9)
+Last session: 2026-02-10
+Stopped at: Phase 8 complete - gap closure plan 08-04 executed successfully
+Resume file: .planning/phases/08-keyset-identity-and-staging-mappings/08-04-SUMMARY.md
+Next action: Phase 8 complete. Ready to proceed to Phase 9 or project completion.
 
 ---
 *State initialized: 2026-02-07*
-*Last updated: 2026-02-09 -- Phase 8 execution complete with gaps (keyset integration missing from DML)*
+*Last updated: 2026-02-10 -- Phase 8 complete: keyset identity and column mappings integrated into DML generation*
