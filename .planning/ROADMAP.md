@@ -41,7 +41,7 @@ See: `.planning/milestones/v0.2.0-ROADMAP.md` for full details.
 
 - [x] **Phase 6: YAML Schema Foundation and Spec Validation** - Pydantic models, YAML parsing, validation with line numbers, `dab init` scaffold
 - [ ] **Phase 7: SQL Generation Engine** - SQLGlot AST-based generation, idempotent DDL/DML, bitemporality, multi-dialect compilation, output formats
-- [ ] **Phase 8: Keyset Identity and Staging Mappings** - Keyset parse/format module, staging column mappings, multi-source loading, conflict resolution
+- [x] **Phase 8: Keyset Identity and Staging Mappings** - Keyset parse/format module, staging column mappings, multi-source loading, conflict resolution
 - [ ] **Phase 9: XML Interoperability** - Import from Anchor Modeler XML, export with extension warnings, round-trip validation
 - [ ] **Phase 10: Northwind Reference Example** - Pre-filled spec, end-to-end validation of all features
 
@@ -95,10 +95,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 08-01: KeysetIdentity module with parse/format, null safety, and Hypothesis tests (KEY-01, KEY-02, KEY-04, KEY-05)
-- [ ] 08-02: Staging mapping models and SQL generation (STG-01, STG-02, STG-03, STG-04, KEY-03)
-- [ ] 08-03: Multi-source conflict resolution (STG-05)
-- [ ] 08-04: Gap closure -- wire keyset identity and column mappings into DML generation (KEY-03, STG-01, STG-04)
+- [x] 08-01: KeysetIdentity module with parse/format, null safety, and Hypothesis tests (KEY-01, KEY-02, KEY-04, KEY-05)
+- [x] 08-02: Staging mapping models and SQL generation (STG-01, STG-02, STG-03, STG-04, KEY-03)
+- [x] 08-03: Multi-source conflict resolution (STG-05)
+- [x] 08-04: Gap closure -- wire keyset identity and column mappings into DML generation (KEY-03, STG-01, STG-04)
 
 ### Phase 9: XML Interoperability
 **Goal**: Users can round-trip specifications between YAML and the official Anchor Modeler XML format without silent data loss
@@ -144,10 +144,10 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 5. Pre-commit Framework Migration | v0.2.0 | 1/1 | Complete | 2026-02-08 |
 | 6. YAML Schema Foundation and Spec Validation | v0.3.0 | 3/3 | Complete | 2026-02-09 |
 | 7. SQL Generation Engine | v0.3.0 | 3/3 | Complete | 2026-02-09 |
-| 8. Keyset Identity and Staging Mappings | v0.3.0 | 3/3 | Gaps found | 2026-02-09 |
+| 8. Keyset Identity and Staging Mappings | v0.3.0 | 4/4 | Complete | 2026-02-10 |
 | 9. XML Interoperability | v0.3.0 | 0/2 | Not started | - |
 | 10. Northwind Reference Example | v0.3.0 | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-09 -- Phase 8 execution complete (gaps found)*
+*Last updated: 2026-02-10 -- Phase 8 complete (all gaps closed, verification passed)*
