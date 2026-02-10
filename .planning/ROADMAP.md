@@ -136,7 +136,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 10-01-PLAN.md -- Northwind YAML spec with inline comments + E2E test suite for generation, determinism, and XML round-trip (NWND-01, NWND-02)
+- [x] 10-01-PLAN.md -- Northwind YAML spec with inline comments + E2E test suite for generation, determinism, and XML round-trip (NWND-01, NWND-02)
 
 ---
 
@@ -158,8 +158,8 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 8.1 -> 9 -> 10
 | 8. Keyset Identity and Staging Mappings | v0.3.0 | 4/4 | Complete | 2026-02-10 |
 | 8.1 Staging Keyset Single Source of Truth | v0.3.0 | 2/2 | Complete | 2026-02-10 |
 | 9. XML Interoperability | v0.3.0 | 2/2 | Complete | 2026-02-10 |
-| 10. Northwind Reference Example | v0.3.0 | 0/1 | Not started | - |
+| 10. Northwind Reference Example | v0.3.0 | 1/1 | Complete | 2026-02-10 |
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-10 -- Phase 10 plan created (1 plan in 1 wave)*
+*Last updated: 2026-02-10 -- Phase 10 complete (Northwind reference example, 1 plan executed, 35 E2E tests added)*
