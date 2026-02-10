@@ -1,0 +1,97 @@
+<schema>
+    <knot mnemonic="PAT" descriptor="ParentalType" identity="tinyint" dataRange="varchar(42)">
+        <metadata equivalent="true"/>
+    </knot>
+    <knot mnemonic="GEN" descriptor="Gender" identity="bit" dataRange="varchar(42)">
+        <metadata equivalent="true"/>
+    </knot>
+    <knot mnemonic="PLV" descriptor="ProfessionalLevel" identity="tinyint" dataRange="varchar(max)">
+        <metadata checksum="true"/>
+    </knot>
+    <knot mnemonic="UTL" descriptor="Utilization" identity="tinyint" dataRange="tinyint">
+        <metadata equivalent="true"/>
+    </knot>
+    <knot mnemonic="ONG" descriptor="Ongoing" identity="tinyint" dataRange="varchar(3)"/>
+    <knot mnemonic="RAT" descriptor="Rating" identity="tinyint" dataRange="varchar(42)"/>
+    <knot mnemonic="ETY" descriptor="EventType" identity="tinyint" dataRange="varchar(42)"/>
+
+    <anchor mnemonic="PN" descriptor="Person" identity="int"/>
+    <anchor mnemonic="ST" descriptor="Stage" identity="int">
+        <attribute mnemonic="NAM" descriptor="Name" timeRange="datetime" dataRange="varchar(42)">
+            <metadata equivalent="true"/>
+            <key stop="1" route="2nd" of="ST" branch="1"/>
+        </attribute>
+        <attribute mnemonic="LOC" descriptor="Location" dataRange="geography">
+            <key stop="1" route="1st" of="ST" branch="1"/>
+            <key stop="3" route="1st" of="EV" branch="2"/>
+            <metadata checksum="true"/>
+        </attribute>
+        <attribute mnemonic="AVG" descriptor="Average" timeRange="datetime" knotRange="UTL"/>
+        <attribute mnemonic="MIN" descriptor="Minimum" knotRange="UTL"/>
+        <identifier route="1st"/>
+        <identifier route="2nd"/>
+    </anchor>
+    <anchor mnemonic="AC" descriptor="Actor" identity="int">
+        <attribute mnemonic="NAM" descriptor="Name" timeRange="datetime" dataRange="varchar(42)">
+            <key stop="1" route="1st" of="AC"/>
+        </attribute>
+        <attribute mnemonic="GEN" descriptor="Gender" knotRange="GEN"/>
+        <attribute mnemonic="PLV" descriptor="ProfessionalLevel" timeRange="datetime" knotRange="PLV"/>
+        <identifier route="1st"/>
+    </anchor>
+    <anchor mnemonic="PR" descriptor="Program" identity="int">
+        <attribute mnemonic="NAM" descriptor="Name" dataRange="varchar(42)">
+            <metadata equivalent="true"/>
+            <key stop="1" route="1st" of="PR" branch="1"/>
+            <key stop="5" route="1st" of="EV" branch="3"/>
+        </attribute>
+        <identifier route="1st"/>
+    </anchor>
+    <nexus mnemonic="EV" descriptor="Event" identity="int">
+        <attribute mnemonic="DAT" descriptor="Date" dataRange="datetime" chronicle="1">
+            <key stop="1" route="1st" of="EV" branch="1"/>
+        </attribute>
+        <attribute mnemonic="AUD" descriptor="Audience" dataRange="int"/>
+        <attribute mnemonic="REV" descriptor="Revenue" dataRange="money"/>
+        <role role="wasHeldAt" type="ST" identifier="false">
+            <key stop="2" route="1st" of="EV" branch="2"/>
+        </role>
+        <role role="wasPlayed" type="PR" identifier="false">
+            <key stop="4" route="1st" of="EV" branch="3"/>
+        </role>
+        <role role="of" type="ETY" identifier="false"/>
+        <identifier route="1st"/>
+    </nexus>
+    <tie timeRange="datetime">
+        <role role="exclusive" type="AC" identifier="false"/>
+        <role role="with" type="AC" identifier="false"/>
+        <role role="currently" type="ONG" identifier="false"/>
+    </tie>
+    <tie>
+        <role role="subset" type="AC" identifier="false"/>
+        <role role="of" type="PN" identifier="false"/>
+    </tie>
+    <tie>
+        <role role="in" type="EV" identifier="true"/>
+        <role role="wasCast" type="AC" identifier="true"/>
+    </tie>
+    <tie timeRange="datetime">
+        <role role="part" type="AC" identifier="true"/>
+        <role role="in" type="PR" identifier="true"/>
+        <role role="got" type="RAT" identifier="false"/>
+    </tie>
+    <tie timeRange="datetime">
+        <role role="at" type="ST" identifier="true"/>
+        <role role="isPlaying" type="PR" identifier="true"/>
+    </tie>
+    <tie>
+        <role role="parent" type="AC" identifier="true"/>
+        <role role="child" type="AC" identifier="true"/>
+        <role role="having" type="PAT" identifier="true"/>
+    </tie>
+    <tie>
+        <role role="content" type="PR" identifier="false"/>
+        <role role="location" type="ST" identifier="false"/>
+        <role role="of" type="EV" identifier="true"/>
+    </tie>
+</schema>

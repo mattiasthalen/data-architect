@@ -37,6 +37,9 @@ source = "uv-dynamic-versioning"
 [tool.hatch.build.targets.wheel]
 packages = ["src/data_architect"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"src/data_architect/xml_interop/anchor.xsd" = "data_architect/xml_interop/anchor.xsd"
+
 [tool.uv-dynamic-versioning]
 fallback-version = "0.0.0+unknown"
 

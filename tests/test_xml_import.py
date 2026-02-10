@@ -22,7 +22,7 @@ def runner() -> CliRunner:
 @pytest.fixture
 def example_xml_path() -> Path:
     """Path to example.xml file."""
-    return Path(__file__).parent.parent / ".references" / "anchor" / "example.xml"
+    return Path(__file__).parent / "fixtures" / "example.xml"
 
 
 # --- Unit tests for XML model parsing ---

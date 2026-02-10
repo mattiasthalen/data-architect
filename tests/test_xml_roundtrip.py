@@ -137,13 +137,8 @@ def test_roundtrip_example_xml():
     may not perfectly round-trip at the XML level, but the Spec-level round-trip
     is more important for verifying correctness.
     """
-    # Load example.xml
-    example_path = Path(".references/anchor/example.xml")
-    if not example_path.exists():
-        # If running from different cwd
-        example_path = (
-            Path(__file__).parent.parent / ".references" / "anchor" / "example.xml"
-        )
+    # Load example.xml from test fixtures
+    example_path = Path(__file__).parent / "fixtures" / "example.xml"
 
     original_xml = example_path.read_text(encoding="utf-8")
 

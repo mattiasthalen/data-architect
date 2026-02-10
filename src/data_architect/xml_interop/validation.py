@@ -11,10 +11,8 @@ from pathlib import Path
 
 from lxml import etree
 
-# Locate anchor.xsd relative to project root
-_XSD_PATH = (
-    Path(__file__).parent.parent.parent.parent / ".references" / "anchor" / "anchor.xsd"
-)
+# Locate anchor.xsd in package data
+_XSD_PATH = Path(__file__).parent / "anchor.xsd"
 
 # Cache compiled schema at module level for performance
 _COMPILED_SCHEMA: etree.XMLSchema | None = None
