@@ -105,10 +105,11 @@ Plans:
 
 **Goal:** Keyset identity is computed once as a materialized column in staging tables (single source of truth), and all downstream anchor/attribute MERGE statements reference that column instead of recomputing the expression inline
 **Depends on:** Phase 8
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 08.1 to break down)
+- [ ] 08.1-01-PLAN.md -- TDD: keyset_id computed column in staging DDL (build_keyset_column + staging table integration)
+- [ ] 08.1-02-PLAN.md -- Simplify DML to reference staging keyset_id column instead of inline computation
 
 ### Phase 9: XML Interoperability
 **Goal**: Users can round-trip specifications between YAML and the official Anchor Modeler XML format without silent data loss
@@ -142,7 +143,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
+Phases execute in numeric order: 6 -> 7 -> 8 -> 8.1 -> 9 -> 10
 (Phase 9 depends only on Phase 6, so it could run in parallel with 7-8 if needed)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -155,10 +156,10 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 6. YAML Schema Foundation and Spec Validation | v0.3.0 | 3/3 | Complete | 2026-02-09 |
 | 7. SQL Generation Engine | v0.3.0 | 3/3 | Complete | 2026-02-09 |
 | 8. Keyset Identity and Staging Mappings | v0.3.0 | 4/4 | Complete | 2026-02-10 |
-| 8.1 Staging Keyset Single Source of Truth | v0.3.0 | 0/? | Not planned | - |
+| 8.1 Staging Keyset Single Source of Truth | v0.3.0 | 0/2 | Planned | - |
 | 9. XML Interoperability | v0.3.0 | 0/2 | Not started | - |
 | 10. Northwind Reference Example | v0.3.0 | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-10 -- Phase 8 complete (all gaps closed, verification passed)*
+*Last updated: 2026-02-10 -- Phase 08.1 planned (2 plans in 2 waves)*
