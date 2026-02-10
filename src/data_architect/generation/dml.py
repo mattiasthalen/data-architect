@@ -6,10 +6,6 @@ import sqlglot as sg
 import sqlglot.expressions as sge
 
 from data_architect.generation.conflict import resolve_staging_order
-from data_architect.generation.keyset_sql import (
-    build_composite_natural_key_expr,
-    build_keyset_expr,
-)
 from data_architect.generation.naming import (
     anchor_table_name,
     attribute_table_name,
@@ -17,7 +13,6 @@ from data_architect.generation.naming import (
     staging_table_name,
     tie_table_name,
 )
-from data_architect.identity.escaping import escape_delimiters
 from data_architect.models.anchor import Anchor, Attribute
 from data_architect.models.knot import Knot
 from data_architect.models.spec import Spec
@@ -26,70 +21,29 @@ from data_architect.models.tie import Tie
 
 
 def _build_metadata_id_expr(
-    anchor: Anchor, mapping: StagingMapping | None, dialect: str
+    anchor: Anchor,  # noqa: ARG001
+    mapping: StagingMapping | None,
+    dialect: str,  # noqa: ARG001
 ) -> str:
-    """Build metadata_id expression: keyset or fallback.
+    """Build metadata_id expression: keyset column reference or fallback.
 
-    When a staging mapping is provided, constructs a keyset identity
-    expression using build_keyset_expr() with the mapping's system,
-    tenant, and natural key columns. For composite natural keys
-    (multiple columns), uses build_composite_natural_key_expr() to
-    concatenate with ':' separator and NULL propagation.
-
-    When no mapping is provided, returns the literal
-    'architect-generated' for backward compatibility.
+    When a staging mapping is provided, references the pre-computed
+    keyset_id column from staging DDL (Phase 08.1 single source of truth).
+    When no mapping is provided, returns the literal 'architect-generated'.
 
     Args:
-        anchor: Anchor model instance
-        mapping: Optional staging mapping with natural key configuration
-        dialect: Target SQL dialect (e.g., "postgres", "snowflake")
+        anchor: Anchor model instance (unused when mapping provided,
+            kept for API compat)
+        mapping: Optional staging mapping
+        dialect: Target SQL dialect (unused when mapping provided,
+            kept for API compat)
 
     Returns:
         SQL expression string for embedding in f-string SQL templates.
     """
     if mapping is None:
         return "'architect-generated'"
-
-    # For single-column natural key, use build_keyset_expr directly
-    if len(mapping.natural_key_columns) == 1:
-        keyset_expr = build_keyset_expr(
-            anchor.descriptor,
-            mapping.system,
-            mapping.tenant,
-            mapping.natural_key_columns[0],
-            dialect,
-        )
-        return keyset_expr.sql(dialect=dialect)
-
-    # For composite natural keys, build manually
-    # Build composite natural key expression
-    composite_nk_expr = build_composite_natural_key_expr(
-        mapping.natural_key_columns, dialect
-    )
-    composite_nk_sql = composite_nk_expr.sql(dialect=dialect)
-
-    # Escape the constant prefix components at generation time
-    esc_entity = escape_delimiters(anchor.descriptor)
-    esc_system = escape_delimiters(mapping.system)
-    esc_tenant = escape_delimiters(mapping.tenant)
-
-    # Build prefix literal: entity@system~tenant|
-    prefix = f"{esc_entity}@{esc_system}~{esc_tenant}|"
-
-    # Build keyset SQL with composite key
-    # Composite expression handles NULL propagation
-    # Runtime escaping for natural key delimiters
-    replace_expr = (
-        f"REPLACE(REPLACE(REPLACE("
-        f"CAST(({composite_nk_sql}) AS VARCHAR), "
-        f"'@', '@@'), '~', '~~'), '|', '||')"
-    )
-    keyset_sql = f"""CASE
-    WHEN {composite_nk_sql} IS NULL THEN NULL
-    ELSE CONCAT('{prefix}', {replace_expr})
-END"""
-
-    return keyset_sql
+    return "source.keyset_id"
 
 
 def build_anchor_merge(
@@ -131,11 +85,11 @@ INSERT INTO {target_table} (
     metadata_id
 )
 SELECT
-    {identity_col},
+    source.{identity_col},
     CURRENT_TIMESTAMP AS metadata_recorded_at,
     'architect' AS metadata_recorded_by,
     {metadata_id_sql} AS metadata_id
-FROM {source_table}
+FROM {source_table} AS source
 ON CONFLICT ({identity_col}) DO NOTHING
 """
     else:
@@ -230,14 +184,14 @@ INSERT INTO {target_table} (
     metadata_id
 )
 SELECT
-    {anchor_fk},
-    {staging_value_col} AS {value_col},
-    changed_at,
+    source.{anchor_fk},
+    source.{staging_value_col} AS {value_col},
+    source.changed_at,
     CURRENT_TIMESTAMP AS recorded_at,
     CURRENT_TIMESTAMP AS metadata_recorded_at,
     'architect' AS metadata_recorded_by,
     {metadata_id_sql} AS metadata_id
-FROM {source_table}
+FROM {source_table} AS source
 ON CONFLICT ({anchor_fk}, changed_at) DO NOTHING
 """
         else:
@@ -278,17 +232,17 @@ INSERT INTO {target_table} (
     metadata_id
 )
 SELECT
-    {anchor_fk},
-    {staging_value_col} AS {value_col},
+    source.{anchor_fk},
+    source.{staging_value_col} AS {value_col},
     CURRENT_TIMESTAMP AS metadata_recorded_at,
     'architect' AS metadata_recorded_by,
     {metadata_id_sql} AS metadata_id
-FROM {source_table}
+FROM {source_table} AS source
 ON CONFLICT ({anchor_fk}) DO UPDATE SET
     {value_col} = EXCLUDED.{value_col},
     metadata_recorded_at = CURRENT_TIMESTAMP,
     metadata_recorded_by = 'architect',
-    metadata_id = {metadata_id_sql}
+    metadata_id = EXCLUDED.metadata_id
 """
         else:
             sql = f"""

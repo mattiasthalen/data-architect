@@ -548,7 +548,7 @@ def test_generate_all_dml_single_source_unchanged():
 
 
 def test_build_anchor_merge_with_mapping_has_keyset():
-    """When mapping provided, metadata_id uses keyset identity."""
+    """When mapping provided, metadata_id uses keyset_id column reference."""
     from data_architect.models.staging import StagingColumn, StagingMapping
 
     mapping = StagingMapping(
@@ -568,14 +568,11 @@ def test_build_anchor_merge_with_mapping_has_keyset():
     result = build_anchor_merge(anchor, "postgres", mapping)
     sql = result.sql(dialect="postgres")
 
-    # Should have keyset prefix with entity, system, and tenant
-    assert "Customer@Northwind~ACME" in sql
+    # Should reference keyset_id column (not inline computation)
+    assert "keyset_id" in sql
+    assert "source.keyset_id" in sql
     # Should NOT have hardcoded literal
     assert "'architect-generated'" not in sql
-    # Should have NULL safety (CASE WHEN)
-    assert "CASE" in sql.upper()
-    # Should have delimiter escaping (REPLACE)
-    assert "REPLACE" in sql.upper()
 
 
 def test_build_anchor_merge_without_mapping_has_fallback():
@@ -590,7 +587,7 @@ def test_build_anchor_merge_without_mapping_has_fallback():
 
 
 def test_build_attribute_merge_with_mapping_has_keyset():
-    """Attribute MERGE uses keyset identity when mapping is provided."""
+    """Attribute MERGE uses keyset_id column reference when mapping is provided."""
     from data_architect.models.staging import StagingColumn, StagingMapping
 
     mapping = StagingMapping(
@@ -613,8 +610,8 @@ def test_build_attribute_merge_with_mapping_has_keyset():
     result = build_attribute_merge(anchor, attribute, "postgres", mapping)
     sql = result.sql(dialect="postgres")
 
-    # Should have keyset prefix
-    assert "Customer@ERP~US" in sql
+    # Should reference keyset_id column
+    assert "keyset_id" in sql
 
 
 def test_build_attribute_merge_column_mapping_used():
@@ -677,7 +674,7 @@ def test_build_attribute_merge_column_mapping_fallback():
 
 
 def test_build_anchor_merge_composite_natural_key():
-    """Composite natural key (multi-column) produces NULL-safe keyset."""
+    """Composite natural key (multi-column) uses keyset_id column reference."""
     from data_architect.models.staging import StagingColumn, StagingMapping
 
     mapping = StagingMapping(
@@ -700,16 +697,12 @@ def test_build_anchor_merge_composite_natural_key():
     result = build_anchor_merge(anchor, "postgres", mapping)
     sql = result.sql(dialect="postgres")
 
-    # Should have keyset prefix
-    assert "Customer@SAP~EU" in sql
-    # Should have composite key separator (CONCAT with ':')
-    assert "CONCAT" in sql.upper()
-    # Should have NULL safety
-    assert "CASE" in sql.upper()
+    # Should reference keyset_id column (not inline computation)
+    assert "keyset_id" in sql
 
 
 def test_generate_all_dml_multi_source_has_keyset():
-    """Multi-source spec generates DML with keyset per source."""
+    """Multi-source spec generates DML with keyset_id column reference."""
     from data_architect.models.staging import StagingColumn, StagingMapping
 
     anchor = Anchor(
@@ -739,12 +732,104 @@ def test_generate_all_dml_multi_source_has_keyset():
 
     result = generate_all_dml(spec, "postgres")
 
-    # Northwind DML should have Northwind keyset
+    # Northwind DML should reference keyset_id
     nw_sql = result["CU_Customer_load_northwind.sql"]
-    assert "Customer@Northwind" in nw_sql
+    assert "keyset_id" in nw_sql
     assert "'architect-generated'" not in nw_sql
 
-    # SAP DML should have SAP keyset
+    # SAP DML should reference keyset_id
     sap_sql = result["CU_Customer_load_sap.sql"]
-    assert "Customer@SAP" in sap_sql
+    assert "keyset_id" in sap_sql
     assert "'architect-generated'" not in sap_sql
+
+
+def test_build_anchor_merge_postgres_has_source_alias():
+    """PostgreSQL template uses AS source alias in FROM clause."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    mapping = StagingMapping(
+        system="ERP",
+        tenant="US",
+        table="stg_customers",
+        natural_key_columns=["customer_id"],
+        columns=[StagingColumn(name="customer_id", type="varchar(10)")],
+    )
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[mapping],
+    )
+
+    result = build_anchor_merge(anchor, "postgres", mapping)
+    sql = result.sql(dialect="postgres")
+
+    # Should have source alias in FROM clause
+    assert "AS source" in sql
+    assert "source.CU_ID" in sql
+
+
+def test_build_attribute_merge_static_uses_excluded():
+    """Static attribute DO UPDATE SET uses EXCLUDED pattern."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    mapping = StagingMapping(
+        system="ERP",
+        tenant="US",
+        table="stg_customers",
+        natural_key_columns=["customer_id"],
+        columns=[StagingColumn(name="customer_id", type="varchar(10)")],
+    )
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[mapping],
+    )
+    attribute = Attribute(
+        mnemonic="EM",
+        descriptor="Email",
+        data_range="VARCHAR(255)",
+        time_range=None,  # Static attribute
+    )
+
+    result = build_attribute_merge(anchor, attribute, "postgres", mapping)
+    sql = result.sql(dialect="postgres")
+
+    # Should use EXCLUDED for metadata_id in DO UPDATE SET
+    assert "EXCLUDED.metadata_id" in sql
+    # Should still have source.keyset_id in SELECT (inserted value)
+    assert "source.keyset_id" in sql
+
+
+def test_dml_keyset_reference_is_shorter():
+    """DML with keyset_id reference is significantly shorter than inline."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    mapping = StagingMapping(
+        system="Northwind",
+        tenant="ACME",
+        table="stg_customers",
+        natural_key_columns=["CustomerID"],
+        columns=[StagingColumn(name="CustomerID", type="varchar(10)")],
+    )
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[mapping],
+    )
+
+    result = build_anchor_merge(anchor, "postgres", mapping)
+    sql = result.sql(dialect="postgres")
+
+    # Count occurrences of keyset_id reference
+    keyset_count = sql.count("keyset_id")
+    # Should appear exactly once (in the SELECT metadata_id AS)
+    assert keyset_count == 1
+
+    # Verify it's the simple reference, not inline computation
+    assert "source.keyset_id" in sql
+    # Should NOT have inline computation artifacts
+    assert "CONCAT" not in sql.upper()
+    assert "Customer@Northwind~ACME" not in sql
