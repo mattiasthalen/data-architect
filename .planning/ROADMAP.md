@@ -40,10 +40,10 @@ See: `.planning/milestones/v0.2.0-ROADMAP.md` for full details.
 **Milestone Goal:** Define a YAML specification format (superset of official Anchor XML) and generate idempotent, dialect-agnostic SQL from it using SQLGlot ASTs. Deliver keyset identity, multi-source staging, XML interoperability, and a Northwind reference example that validates everything end-to-end.
 
 - [x] **Phase 6: YAML Schema Foundation and Spec Validation** - Pydantic models, YAML parsing, validation with line numbers, `dab init` scaffold
-- [ ] **Phase 7: SQL Generation Engine** - SQLGlot AST-based generation, idempotent DDL/DML, bitemporality, multi-dialect compilation, output formats
+- [x] **Phase 7: SQL Generation Engine** - SQLGlot AST-based generation, idempotent DDL/DML, bitemporality, multi-dialect compilation, output formats
 - [x] **Phase 8: Keyset Identity and Staging Mappings** - Keyset parse/format module, staging column mappings, multi-source loading, conflict resolution
 - [x] **Phase 8.1: Staging Keyset Single Source of Truth** - Move keyset identity computation into staging tables so it's computed once at load time (INSERTED)
-- [ ] **Phase 9: XML Interoperability** - Import from Anchor Modeler XML, export with extension warnings, round-trip validation
+- [x] **Phase 9: XML Interoperability** - Import from Anchor Modeler XML, export with extension warnings, round-trip validation
 - [ ] **Phase 10: Northwind Reference Example** - Pre-filled spec, end-to-end validation of all features
 
 ## Phase Details
@@ -79,9 +79,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 07-01: SQLGlot AST builders for DDL -- anchors, attributes, ties, knots, staging tables (GEN-01, GEN-02, GEN-03, GEN-04, GEN-06, GEN-07, GEN-08, GEN-10)
-- [ ] 07-02: SQLGlot AST builders for DML -- MERGE/UPSERT loading patterns (GEN-05)
-- [ ] 07-03: CLI `dab generate` command with format and dialect flags (GEN-09)
+- [x] 07-01: SQLGlot AST builders for DDL -- anchors, attributes, ties, knots, staging tables (GEN-01, GEN-02, GEN-03, GEN-04, GEN-06, GEN-07, GEN-08, GEN-10)
+- [x] 07-02: SQLGlot AST builders for DML -- MERGE/UPSERT loading patterns (GEN-05)
+- [x] 07-03: CLI `dab generate` command with format and dialect flags (GEN-09)
 
 ### Phase 8: Keyset Identity and Staging Mappings
 **Goal**: Users can define multi-source staging mappings with keyset identity and generate loading SQL that tracks data provenance
@@ -123,8 +123,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md -- XML import: pydantic-xml models, import function, CLI `dab import` command (INTOP-01)
-- [ ] 09-02-PLAN.md -- XML export with extension warnings, XSD validation, and round-trip verification (INTOP-02, INTOP-03, INTOP-04)
+- [x] 09-01-PLAN.md -- XML import: pydantic-xml models, import function, CLI `dab import` command (INTOP-01)
+- [x] 09-02-PLAN.md -- XML export with extension warnings, XSD validation, and round-trip verification (INTOP-02, INTOP-03, INTOP-04)
 
 ### Phase 10: Northwind Reference Example
 **Goal**: A complete, runnable Northwind example validates every feature of the DAB generation pipeline end-to-end
@@ -136,7 +136,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 10-01: Northwind spec and end-to-end validation (NWND-01, NWND-02)
+- [ ] 10-01-PLAN.md -- Northwind YAML spec with inline comments + E2E test suite for generation, determinism, and XML round-trip (NWND-01, NWND-02)
 
 ---
 
@@ -157,9 +157,9 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 8.1 -> 9 -> 10
 | 7. SQL Generation Engine | v0.3.0 | 3/3 | Complete | 2026-02-09 |
 | 8. Keyset Identity and Staging Mappings | v0.3.0 | 4/4 | Complete | 2026-02-10 |
 | 8.1 Staging Keyset Single Source of Truth | v0.3.0 | 2/2 | Complete | 2026-02-10 |
-| 9. XML Interoperability | v0.3.0 | 0/2 | Not started | - |
+| 9. XML Interoperability | v0.3.0 | 2/2 | Complete | 2026-02-10 |
 | 10. Northwind Reference Example | v0.3.0 | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-10 -- Phase 9 plans created (2 plans in 2 waves)*
+*Last updated: 2026-02-10 -- Phase 10 plan created (1 plan in 1 wave)*
