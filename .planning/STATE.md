@@ -78,6 +78,10 @@ Recent decisions affecting current work:
 
 None.
 
+### Roadmap Evolution
+
+- Phase 08.1 inserted after Phase 8: Staging keyset single source of truth (URGENT)
+
 ### Blockers/Concerns
 
 None - Phase 8 complete with all gaps closed.
