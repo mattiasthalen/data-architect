@@ -82,7 +82,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "ANN", "ARG"]
+"tests/**" = ["S101", "ANN", "ARG", "E501", "PT015", "B011", "PT017"]  # Tests have long XML strings
 "src/data_architect/cli.py" = ["B008"]
 "src/data_architect/templates.py" = ["E501"]  # Template strings contain markdown prose
 "src/data_architect/dab_init.py" = ["E501"]  # Template comment strings contain documentation prose

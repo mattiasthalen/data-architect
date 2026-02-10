@@ -20,7 +20,11 @@ from data_architect.generation.naming import attribute_table_name, tie_table_nam
 from data_architect.scaffold import ScaffoldAction, scaffold
 from data_architect.validation.errors import format_errors
 from data_architect.validation.loader import validate_spec
-from data_architect.xml_interop import import_xml_to_spec
+from data_architect.xml_interop import (
+    check_yaml_extensions,
+    export_spec_to_xml,
+    import_xml_to_spec,
+)
 
 app = typer.Typer(
     help="Data Architect: Scaffold OpenCode AI agents for data warehouse design.",
@@ -190,6 +194,81 @@ def dab_import(
     # Success message
     symbol = "\u2713"
     typer.echo(typer.style(f"{symbol} Imported {xml_path} -> {output}", fg="green"))
+
+
+@dab_app.command(name="export")
+def dab_export(
+    spec_path: Path = typer.Argument(..., help="Path to YAML spec file"),
+    output: Path = typer.Option(
+        Path("model.xml"),
+        "--output",
+        "-o",
+        help="Output XML file",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Force export, dropping YAML-only extensions",
+    ),
+    overwrite: bool = typer.Option(
+        False,
+        "--overwrite",
+        help="Overwrite existing XML file",
+    ),
+) -> None:
+    """Export YAML spec to Anchor Modeler XML format."""
+    # Validate spec_path exists
+    if not spec_path.exists():
+        typer.echo(typer.style(f"Error: spec file not found: {spec_path}", fg="red"))
+        raise typer.Exit(code=1)
+
+    # Load and validate spec
+    result = validate_spec(spec_path)
+
+    if not result.is_valid:
+        typer.echo(typer.style("Validation errors:", fg="red"))
+        typer.echo(format_errors(result.errors))
+        raise typer.Exit(code=1)
+
+    if result.spec is None:
+        typer.echo(typer.style("Error: failed to load spec", fg="red"))
+        raise typer.Exit(code=1)
+
+    # Check output exists and not --overwrite
+    if output.exists() and not overwrite:
+        typer.echo(
+            typer.style(
+                f"Error: {output} already exists (use --overwrite to replace)",
+                fg="red",
+            )
+        )
+        raise typer.Exit(code=1)
+
+    # Check for YAML extensions - if present and not --force, warn and exit
+    extensions = check_yaml_extensions(result.spec)
+    if extensions and not force:
+        typer.echo(
+            typer.style("Warning: YAML-only extensions will be dropped:", fg="yellow")
+        )
+        for ext in extensions:
+            typer.echo(typer.style(f"  - {ext}", fg="yellow"))
+        typer.echo(typer.style("Use --force to proceed with export.", fg="yellow"))
+        raise typer.Exit(code=1)
+
+    # Export spec to XML
+    try:
+        xml_output = export_spec_to_xml(result.spec, force=force)
+    except ValueError as e:
+        typer.echo(typer.style(f"Error: {e}", fg="red"))
+        raise typer.Exit(code=1) from None
+
+    # Write XML to output file
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(xml_output, encoding="utf-8")
+
+    # Success message
+    symbol = "\u2713"
+    typer.echo(typer.style(f"{symbol} Exported {spec_path} -> {output}", fg="green"))
 
 
 class OutputFormat(StrEnum):

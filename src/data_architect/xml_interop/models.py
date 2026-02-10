@@ -36,6 +36,11 @@ class KeyXML(BaseXmlModel, tag="key"):
         """Convert to YAML Pydantic Key model."""
         return Key(stop=self.stop, route=self.route, of_=self.of_, branch=self.branch)
 
+    @classmethod
+    def from_yaml_model(cls, key: Key) -> KeyXML:
+        """Convert from YAML Pydantic Key model."""
+        return cls(stop=key.stop, route=key.route, of_=key.of_, branch=key.branch)
+
 
 class IdentifierXML(BaseXmlModel, tag="identifier"):
     """XML model for identifier element."""
@@ -45,6 +50,11 @@ class IdentifierXML(BaseXmlModel, tag="identifier"):
     def to_yaml_model(self) -> Identifier:
         """Convert to YAML Pydantic Identifier model."""
         return Identifier(route=self.route)
+
+    @classmethod
+    def from_yaml_model(cls, identifier: Identifier) -> IdentifierXML:
+        """Convert from YAML Pydantic Identifier model."""
+        return cls(route=identifier.route)
 
 
 class DescriptionXML(BaseXmlModel, tag="description"):
@@ -109,6 +119,32 @@ class AttributeXML(BaseXmlModel, tag="attribute"):
             else None,
         )
 
+    @classmethod
+    def from_yaml_model(cls, attr: Attribute) -> AttributeXML:
+        """Convert from YAML Pydantic Attribute model.
+
+        Note: staging_column is a YAML-extension field and is NOT exported to XML.
+        """
+        # Create metadata element if metadata present
+        metadata_elem = MetadataXML() if attr.metadata_ else None
+        description_elem = (
+            DescriptionXML(content=attr.description_) if attr.description_ else None
+        )
+
+        # pydantic-xml models use skip_empty during serialization
+        # so we can pass all values including None
+        return cls(
+            mnemonic=attr.mnemonic,
+            descriptor=attr.descriptor,
+            knot_range=attr.knot_range,
+            data_range=attr.data_range,
+            time_range=attr.time_range,
+            keys=[KeyXML.from_yaml_model(k) for k in attr.keys],
+            metadata_elem=metadata_elem,
+            layout_elem=None,
+            description_elem=description_elem,
+        )
+
 
 class RoleXML(BaseXmlModel, tag="role"):
     """XML model for role element."""
@@ -144,6 +180,25 @@ class RoleXML(BaseXmlModel, tag="role"):
             description_=self.description_elem.content
             if self.description_elem
             else None,
+        )
+
+    @classmethod
+    def from_yaml_model(cls, role: Role) -> RoleXML:
+        """Convert from YAML Pydantic Role model."""
+        metadata_elem = MetadataXML() if role.metadata_ else None
+        description_elem = (
+            DescriptionXML(content=role.description_) if role.description_ else None
+        )
+
+        return cls(
+            role=role.role,
+            type_=role.type_,
+            identifier=role.identifier,
+            coloring=role.coloring,
+            keys=[KeyXML.from_yaml_model(k) for k in role.keys],
+            metadata_elem=metadata_elem,
+            layout_elem=None,
+            description_elem=description_elem,
         )
 
 
@@ -189,6 +244,28 @@ class AnchorXML(BaseXmlModel, tag="anchor"):
             else None,
         )
 
+    @classmethod
+    def from_yaml_model(cls, anchor: Anchor) -> AnchorXML:
+        """Convert from YAML Pydantic Anchor model.
+
+        Note: staging_mappings is a YAML-extension field and is NOT exported to XML.
+        """
+        metadata_elem = MetadataXML() if anchor.metadata_ else None
+        description_elem = (
+            DescriptionXML(content=anchor.description_) if anchor.description_ else None
+        )
+
+        return cls(
+            mnemonic=anchor.mnemonic,
+            descriptor=anchor.descriptor,
+            identity=anchor.identity,
+            attributes=[AttributeXML.from_yaml_model(a) for a in anchor.attributes],
+            identifiers=[IdentifierXML.from_yaml_model(i) for i in anchor.identifiers],
+            metadata_elem=metadata_elem,
+            layout_elem=None,
+            description_elem=description_elem,
+        )
+
 
 class KnotXML(BaseXmlModel, tag="knot"):
     """XML model for knot element."""
@@ -222,6 +299,24 @@ class KnotXML(BaseXmlModel, tag="knot"):
             description_=self.description_elem.content
             if self.description_elem
             else None,
+        )
+
+    @classmethod
+    def from_yaml_model(cls, knot: Knot) -> KnotXML:
+        """Convert from YAML Pydantic Knot model."""
+        metadata_elem = MetadataXML() if knot.metadata_ else None
+        description_elem = (
+            DescriptionXML(content=knot.description_) if knot.description_ else None
+        )
+
+        return cls(
+            mnemonic=knot.mnemonic,
+            descriptor=knot.descriptor,
+            identity=knot.identity,
+            data_range=knot.data_range,
+            metadata_elem=metadata_elem,
+            layout_elem=None,
+            description_elem=description_elem,
         )
 
 
@@ -259,6 +354,22 @@ class TieXML(BaseXmlModel, tag="tie"):
             description_=self.description_elem.content
             if self.description_elem
             else None,
+        )
+
+    @classmethod
+    def from_yaml_model(cls, tie: Tie) -> TieXML:
+        """Convert from YAML Pydantic Tie model."""
+        metadata_elem = MetadataXML() if tie.metadata_ else None
+        description_elem = (
+            DescriptionXML(content=tie.description_) if tie.description_ else None
+        )
+
+        return cls(
+            time_range=tie.time_range,
+            roles=[RoleXML.from_yaml_model(r) for r in tie.roles],
+            metadata_elem=metadata_elem,
+            layout_elem=None,
+            description_elem=description_elem,
         )
 
 
@@ -308,6 +419,26 @@ class NexusXML(BaseXmlModel, tag="nexus"):
             description_=self.description_elem.content
             if self.description_elem
             else None,
+        )
+
+    @classmethod
+    def from_yaml_model(cls, nexus: Nexus) -> NexusXML:
+        """Convert from YAML Pydantic Nexus model."""
+        metadata_elem = MetadataXML() if nexus.metadata_ else None
+        description_elem = (
+            DescriptionXML(content=nexus.description_) if nexus.description_ else None
+        )
+
+        return cls(
+            mnemonic=nexus.mnemonic,
+            descriptor=nexus.descriptor,
+            identity=nexus.identity,
+            attributes=[AttributeXML.from_yaml_model(a) for a in nexus.attributes],
+            roles=[RoleXML.from_yaml_model(r) for r in nexus.roles],
+            identifiers=[IdentifierXML.from_yaml_model(i) for i in nexus.identifiers],
+            metadata_elem=metadata_elem,
+            layout_elem=None,
+            description_elem=description_elem,
         )
 
 
@@ -366,6 +497,24 @@ class SchemaXML(BaseXmlModel, tag="schema"):
             else None,
         )
 
+    @classmethod
+    def from_yaml_model(cls, spec: Spec) -> SchemaXML:
+        """Convert from YAML Pydantic Spec model."""
+        metadata_elem = MetadataXML() if spec.metadata_ else None
+        description_elem = (
+            DescriptionXML(content=spec.description_) if spec.description_ else None
+        )
+
+        return cls(
+            knots=[KnotXML.from_yaml_model(k) for k in spec.knots],
+            anchors=[AnchorXML.from_yaml_model(a) for a in spec.anchors],
+            nexuses=[NexusXML.from_yaml_model(n) for n in spec.nexuses],
+            ties=[TieXML.from_yaml_model(t) for t in spec.ties],
+            metadata_elem=metadata_elem,
+            layout_elem=None,
+            description_elem=description_elem,
+        )
+
 
 def _extract_metadata_attrs(parent_elem: etree._Element) -> dict[str, Any] | None:
     """Extract metadata element attributes from raw lxml element.
@@ -390,3 +539,31 @@ def _extract_metadata_attrs(parent_elem: etree._Element) -> dict[str, Any] | Non
         for k, v in metadata_elem.attrib.items()
     }
     return metadata_dict if metadata_dict else None
+
+
+def _set_metadata_attrs(
+    xml_elem: etree._Element, metadata_dict: dict[str, Any] | None
+) -> None:
+    """Set metadata attributes on an XML element's metadata child.
+
+    Args:
+        xml_elem: The XML element containing metadata child element.
+        metadata_dict: Dictionary of metadata attributes to set.
+    """
+    if metadata_dict is None:
+        return
+
+    # Find metadata element - may have namespace or not
+    # Try without namespace first, then with namespace
+    metadata_elem = xml_elem.find("metadata")
+    if metadata_elem is None:
+        # Try with Anchor Modeling namespace
+        NS = "http://anchormodeling.com/schema"
+        metadata_elem = xml_elem.find(f"{{{NS}}}metadata")
+
+    if metadata_elem is None:
+        return
+
+    # Set all attributes
+    for key, value in metadata_dict.items():
+        metadata_elem.set(key, str(value))
