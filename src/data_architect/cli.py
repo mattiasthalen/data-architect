@@ -6,6 +6,7 @@ from enum import StrEnum
 from pathlib import Path
 
 import typer
+from ruamel.yaml import YAML
 
 from data_architect.dab_init import generate_spec_template
 from data_architect.generation import (
@@ -19,6 +20,7 @@ from data_architect.generation.naming import attribute_table_name, tie_table_nam
 from data_architect.scaffold import ScaffoldAction, scaffold
 from data_architect.validation.errors import format_errors
 from data_architect.validation.loader import validate_spec
+from data_architect.xml_interop import import_xml_to_spec
 
 app = typer.Typer(
     help="Data Architect: Scaffold OpenCode AI agents for data warehouse design.",
@@ -134,6 +136,60 @@ def dab_init(
     # Success message
     symbol = "\u2713"
     typer.echo(typer.style(f"{symbol} {output}", fg="green"))
+
+
+@dab_app.command(name="import")
+def dab_import(
+    xml_path: Path = typer.Argument(..., help="Path to Anchor Modeler XML file"),
+    output: Path = typer.Option(
+        Path("spec.yaml"),
+        "--output",
+        "-o",
+        help="Output YAML spec file",
+    ),
+    overwrite: bool = typer.Option(
+        False,
+        "--overwrite",
+        help="Overwrite existing YAML file",
+    ),
+) -> None:
+    """Import Anchor Modeler XML to YAML spec format."""
+    # Validate xml_path exists
+    if not xml_path.exists():
+        typer.echo(typer.style(f"Error: XML file not found: {xml_path}", fg="red"))
+        raise typer.Exit(code=1)
+
+    # Check output exists and not --overwrite
+    if output.exists() and not overwrite:
+        typer.echo(
+            typer.style(
+                f"Error: {output} already exists (use --overwrite to replace)",
+                fg="red",
+            )
+        )
+        raise typer.Exit(code=1)
+
+    # Import XML to Spec
+    try:
+        spec = import_xml_to_spec(xml_path)
+    except Exception as e:
+        typer.echo(typer.style(f"Error: {e}", fg="red"))
+        raise typer.Exit(code=1) from None
+
+    # Serialize Spec to YAML
+    spec_dict = spec.model_dump(by_alias=True, exclude_none=True)
+
+    # Write YAML to output file
+    output.parent.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    yaml.default_flow_style = False
+    yaml.width = 4096  # Prevent line wrapping
+    with output.open("w") as f:
+        yaml.dump(spec_dict, f)
+
+    # Success message
+    symbol = "\u2713"
+    typer.echo(typer.style(f"{symbol} Imported {xml_path} -> {output}", fg="green"))
 
 
 class OutputFormat(StrEnum):
