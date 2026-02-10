@@ -6,6 +6,10 @@ import sqlglot as sg
 import sqlglot.expressions as sge
 
 from data_architect.generation.conflict import resolve_staging_order
+from data_architect.generation.keyset_sql import (
+    build_composite_natural_key_expr,
+    build_keyset_expr,
+)
 from data_architect.generation.naming import (
     anchor_table_name,
     attribute_table_name,
@@ -13,11 +17,79 @@ from data_architect.generation.naming import (
     staging_table_name,
     tie_table_name,
 )
+from data_architect.identity.escaping import escape_delimiters
 from data_architect.models.anchor import Anchor, Attribute
 from data_architect.models.knot import Knot
 from data_architect.models.spec import Spec
 from data_architect.models.staging import StagingMapping
 from data_architect.models.tie import Tie
+
+
+def _build_metadata_id_expr(
+    anchor: Anchor, mapping: StagingMapping | None, dialect: str
+) -> str:
+    """Build metadata_id expression: keyset or fallback.
+
+    When a staging mapping is provided, constructs a keyset identity
+    expression using build_keyset_expr() with the mapping's system,
+    tenant, and natural key columns. For composite natural keys
+    (multiple columns), uses build_composite_natural_key_expr() to
+    concatenate with ':' separator and NULL propagation.
+
+    When no mapping is provided, returns the literal
+    'architect-generated' for backward compatibility.
+
+    Args:
+        anchor: Anchor model instance
+        mapping: Optional staging mapping with natural key configuration
+        dialect: Target SQL dialect (e.g., "postgres", "snowflake")
+
+    Returns:
+        SQL expression string for embedding in f-string SQL templates.
+    """
+    if mapping is None:
+        return "'architect-generated'"
+
+    # For single-column natural key, use build_keyset_expr directly
+    if len(mapping.natural_key_columns) == 1:
+        keyset_expr = build_keyset_expr(
+            anchor.descriptor,
+            mapping.system,
+            mapping.tenant,
+            mapping.natural_key_columns[0],
+            dialect,
+        )
+        return keyset_expr.sql(dialect=dialect)
+
+    # For composite natural keys, build manually
+    # Build composite natural key expression
+    composite_nk_expr = build_composite_natural_key_expr(
+        mapping.natural_key_columns, dialect
+    )
+    composite_nk_sql = composite_nk_expr.sql(dialect=dialect)
+
+    # Escape the constant prefix components at generation time
+    esc_entity = escape_delimiters(anchor.descriptor)
+    esc_system = escape_delimiters(mapping.system)
+    esc_tenant = escape_delimiters(mapping.tenant)
+
+    # Build prefix literal: entity@system~tenant|
+    prefix = f"{esc_entity}@{esc_system}~{esc_tenant}|"
+
+    # Build keyset SQL with composite key
+    # Composite expression handles NULL propagation
+    # Runtime escaping for natural key delimiters
+    replace_expr = (
+        f"REPLACE(REPLACE(REPLACE("
+        f"CAST(({composite_nk_sql}) AS VARCHAR), "
+        f"'@', '@@'), '~', '~~'), '|', '||')"
+    )
+    keyset_sql = f"""CASE
+    WHEN {composite_nk_sql} IS NULL THEN NULL
+    ELSE CONCAT('{prefix}', {replace_expr})
+END"""
+
+    return keyset_sql
 
 
 def build_anchor_merge(
@@ -45,6 +117,9 @@ def build_anchor_merge(
     else:
         source_table = f"stg_{target_table}"
 
+    # Build metadata_id expression (keyset if mapping provided, else fallback)
+    metadata_id_sql = _build_metadata_id_expr(anchor, mapping, dialect)
+
     # For PostgreSQL: Use INSERT...ON CONFLICT DO NOTHING
     # Anchors are identity-only, so no updates needed
     if dialect == "postgres":
@@ -59,7 +134,7 @@ SELECT
     {identity_col},
     CURRENT_TIMESTAMP AS metadata_recorded_at,
     'architect' AS metadata_recorded_by,
-    'architect-generated' AS metadata_id
+    {metadata_id_sql} AS metadata_id
 FROM {source_table}
 ON CONFLICT ({identity_col}) DO NOTHING
 """
@@ -80,7 +155,7 @@ WHEN NOT MATCHED THEN
         source.{identity_col},
         CURRENT_TIMESTAMP,
         'architect',
-        'architect-generated'
+        {metadata_id_sql}
     )
 """
 
@@ -125,6 +200,9 @@ def build_attribute_merge(
     else:  # knot_range
         value_col = f"{attribute.knot_range}_ID"
 
+    # Build metadata_id expression (keyset if mapping provided, else fallback)
+    metadata_id_sql = _build_metadata_id_expr(anchor, mapping, dialect)
+
     # Check if historized (has time_range)
     if attribute.time_range:
         # Historized: Append-only SCD2 pattern
@@ -147,7 +225,7 @@ SELECT
     CURRENT_TIMESTAMP AS recorded_at,
     CURRENT_TIMESTAMP AS metadata_recorded_at,
     'architect' AS metadata_recorded_by,
-    'architect-generated' AS metadata_id
+    {metadata_id_sql} AS metadata_id
 FROM {source_table}
 ON CONFLICT ({anchor_fk}, changed_at) DO NOTHING
 """
@@ -174,7 +252,7 @@ WHEN NOT MATCHED THEN
         CURRENT_TIMESTAMP,
         CURRENT_TIMESTAMP,
         'architect',
-        'architect-generated'
+        {metadata_id_sql}
     )
 """
     else:
@@ -193,13 +271,13 @@ SELECT
     {value_col},
     CURRENT_TIMESTAMP AS metadata_recorded_at,
     'architect' AS metadata_recorded_by,
-    'architect-generated' AS metadata_id
+    {metadata_id_sql} AS metadata_id
 FROM {source_table}
 ON CONFLICT ({anchor_fk}) DO UPDATE SET
     {value_col} = EXCLUDED.{value_col},
     metadata_recorded_at = CURRENT_TIMESTAMP,
     metadata_recorded_by = 'architect',
-    metadata_id = 'architect-generated'
+    metadata_id = {metadata_id_sql}
 """
         else:
             sql = f"""
@@ -211,7 +289,7 @@ WHEN MATCHED THEN
         {value_col} = source.{value_col},
         metadata_recorded_at = CURRENT_TIMESTAMP,
         metadata_recorded_by = 'architect',
-        metadata_id = 'architect-generated'
+        metadata_id = {metadata_id_sql}
 WHEN NOT MATCHED THEN
     INSERT (
         {anchor_fk},
@@ -225,7 +303,7 @@ WHEN NOT MATCHED THEN
         source.{value_col},
         CURRENT_TIMESTAMP,
         'architect',
-        'architect-generated'
+        {metadata_id_sql}
     )
 """
 
