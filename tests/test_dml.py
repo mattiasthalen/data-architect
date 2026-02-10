@@ -540,3 +540,211 @@ def test_generate_all_dml_single_source_unchanged():
     assert "CU_Customer_load.sql" in result
     # Should NOT have multi-source suffixed files
     assert "CU_Customer_load_erp.sql" not in result
+
+
+# ============================================================================
+# Keyset Identity and Column Mapping Tests (Phase 8 Gap Closure)
+# ============================================================================
+
+
+def test_build_anchor_merge_with_mapping_has_keyset():
+    """When mapping provided, metadata_id uses keyset identity."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    mapping = StagingMapping(
+        system="Northwind",
+        tenant="ACME",
+        table="stg_customers",
+        natural_key_columns=["CustomerID"],
+        columns=[StagingColumn(name="CustomerID", type="varchar(10)")],
+    )
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[mapping],
+    )
+
+    result = build_anchor_merge(anchor, "postgres", mapping)
+    sql = result.sql(dialect="postgres")
+
+    # Should have keyset prefix with entity, system, and tenant
+    assert "Customer@Northwind~ACME" in sql
+    # Should NOT have hardcoded literal
+    assert "'architect-generated'" not in sql
+    # Should have NULL safety (CASE WHEN)
+    assert "CASE" in sql.upper()
+    # Should have delimiter escaping (REPLACE)
+    assert "REPLACE" in sql.upper()
+
+
+def test_build_anchor_merge_without_mapping_has_fallback():
+    """When no mapping, metadata_id uses 'architect-generated' literal."""
+    anchor = Anchor(mnemonic="CU", descriptor="Customer", identity="bigint")
+
+    result = build_anchor_merge(anchor, "postgres")
+    sql = result.sql(dialect="postgres")
+
+    # Should have fallback literal
+    assert "architect-generated" in sql
+
+
+def test_build_attribute_merge_with_mapping_has_keyset():
+    """Attribute MERGE uses keyset identity when mapping is provided."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    mapping = StagingMapping(
+        system="ERP",
+        tenant="US",
+        table="stg_customers",
+        natural_key_columns=["customer_id"],
+        columns=[StagingColumn(name="customer_id", type="varchar(10)")],
+    )
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[mapping],
+    )
+    attribute = Attribute(
+        mnemonic="FN", descriptor="FirstName", data_range="VARCHAR(100)"
+    )
+
+    result = build_attribute_merge(anchor, attribute, "postgres", mapping)
+    sql = result.sql(dialect="postgres")
+
+    # Should have keyset prefix
+    assert "Customer@ERP~US" in sql
+
+
+def test_build_attribute_merge_column_mapping_used():
+    """When column_mappings provided, SELECT uses mapped column name."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    mapping = StagingMapping(
+        system="NW",
+        tenant="US",
+        table="stg_customers",
+        natural_key_columns=["id"],
+        columns=[StagingColumn(name="id", type="varchar(10)")],
+        column_mappings={"FN": "first_name_source"},
+    )
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[mapping],
+    )
+    attribute = Attribute(
+        mnemonic="FN", descriptor="FirstName", data_range="VARCHAR(100)"
+    )
+
+    result = build_attribute_merge(anchor, attribute, "postgres", mapping)
+    sql = result.sql(dialect="postgres")
+
+    # Should reference the mapped staging column name
+    assert "first_name_source" in sql
+
+
+def test_build_attribute_merge_column_mapping_fallback():
+    """When no column_mappings, SELECT uses default column name."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    mapping = StagingMapping(
+        system="NW",
+        tenant="US",
+        table="stg_customers",
+        natural_key_columns=["id"],
+        columns=[StagingColumn(name="id", type="varchar(10)")],
+        column_mappings={},  # Empty mappings
+    )
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[mapping],
+    )
+    attribute = Attribute(
+        mnemonic="FN", descriptor="FirstName", data_range="VARCHAR(100)"
+    )
+
+    result = build_attribute_merge(anchor, attribute, "postgres", mapping)
+    sql = result.sql(dialect="postgres")
+
+    # Should use default column name (same as target)
+    expected_col = "CU_FN_Customer_FirstName"
+    assert expected_col in sql
+
+
+def test_build_anchor_merge_composite_natural_key():
+    """Composite natural key (multi-column) produces NULL-safe keyset."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    mapping = StagingMapping(
+        system="SAP",
+        tenant="EU",
+        table="stg_customers",
+        natural_key_columns=["col1", "col2"],
+        columns=[
+            StagingColumn(name="col1", type="varchar(10)"),
+            StagingColumn(name="col2", type="varchar(10)"),
+        ],
+    )
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[mapping],
+    )
+
+    result = build_anchor_merge(anchor, "postgres", mapping)
+    sql = result.sql(dialect="postgres")
+
+    # Should have keyset prefix
+    assert "Customer@SAP~EU" in sql
+    # Should have composite key separator (CONCAT with ':')
+    assert "CONCAT" in sql.upper()
+    # Should have NULL safety
+    assert "CASE" in sql.upper()
+
+
+def test_generate_all_dml_multi_source_has_keyset():
+    """Multi-source spec generates DML with keyset per source."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[
+            StagingMapping(
+                system="Northwind",
+                tenant="US",
+                table="stg_nw_customers",
+                natural_key_columns=["CustomerID"],
+                columns=[StagingColumn(name="CustomerID", type="varchar(10)")],
+                priority=1,
+            ),
+            StagingMapping(
+                system="SAP",
+                tenant="EU",
+                table="stg_sap_customers",
+                natural_key_columns=["KUNNR"],
+                columns=[StagingColumn(name="KUNNR", type="varchar(10)")],
+                priority=2,
+            ),
+        ],
+    )
+    spec = Spec(anchors=[anchor], knots=[], ties=[])
+
+    result = generate_all_dml(spec, "postgres")
+
+    # Northwind DML should have Northwind keyset
+    nw_sql = result["CU_Customer_load_northwind.sql"]
+    assert "Customer@Northwind" in nw_sql
+    assert "'architect-generated'" not in nw_sql
+
+    # SAP DML should have SAP keyset
+    sap_sql = result["CU_Customer_load_sap.sql"]
+    assert "Customer@SAP" in sap_sql
+    assert "'architect-generated'" not in sap_sql

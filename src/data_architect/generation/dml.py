@@ -200,6 +200,17 @@ def build_attribute_merge(
     else:  # knot_range
         value_col = f"{attribute.knot_range}_ID"
 
+    # Determine staging source column name
+    # Use column_mappings if available, otherwise default to value_col
+    if (
+        mapping
+        and mapping.column_mappings
+        and attribute.mnemonic in mapping.column_mappings
+    ):
+        staging_value_col = mapping.column_mappings[attribute.mnemonic]
+    else:
+        staging_value_col = value_col  # Default: same name as target
+
     # Build metadata_id expression (keyset if mapping provided, else fallback)
     metadata_id_sql = _build_metadata_id_expr(anchor, mapping, dialect)
 
@@ -220,7 +231,7 @@ INSERT INTO {target_table} (
 )
 SELECT
     {anchor_fk},
-    {value_col},
+    {staging_value_col} AS {value_col},
     changed_at,
     CURRENT_TIMESTAMP AS recorded_at,
     CURRENT_TIMESTAMP AS metadata_recorded_at,
@@ -247,7 +258,7 @@ WHEN NOT MATCHED THEN
     )
     VALUES (
         source.{anchor_fk},
-        source.{value_col},
+        source.{staging_value_col},
         source.changed_at,
         CURRENT_TIMESTAMP,
         CURRENT_TIMESTAMP,
@@ -268,7 +279,7 @@ INSERT INTO {target_table} (
 )
 SELECT
     {anchor_fk},
-    {value_col},
+    {staging_value_col} AS {value_col},
     CURRENT_TIMESTAMP AS metadata_recorded_at,
     'architect' AS metadata_recorded_by,
     {metadata_id_sql} AS metadata_id
@@ -286,7 +297,7 @@ USING {source_table} AS source
 ON target.{anchor_fk} = source.{anchor_fk}
 WHEN MATCHED THEN
     UPDATE SET
-        {value_col} = source.{value_col},
+        {value_col} = source.{staging_value_col},
         metadata_recorded_at = CURRENT_TIMESTAMP,
         metadata_recorded_by = 'architect',
         metadata_id = {metadata_id_sql}
@@ -300,7 +311,7 @@ WHEN NOT MATCHED THEN
     )
     VALUES (
         source.{anchor_fk},
-        source.{value_col},
+        source.{staging_value_col},
         CURRENT_TIMESTAMP,
         'architect',
         {metadata_id_sql}
