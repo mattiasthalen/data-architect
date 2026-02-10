@@ -92,12 +92,13 @@ Plans:
   3. A spec with multiple staging tables feeding the same anchor generates correct loading SQL for each source, with system and tenant identifiers embedded in the keyset
   4. Column-level staging mappings (`staging_table.column` maps to `anchor.attribute`) produce INSERT...SELECT SQL with explicit column lineage
   5. Conflict resolution strategy is declared per multi-source anchor in the YAML spec, and generated SQL applies deterministic ordering (explicit priority, then system name)
-**Plans**: 3 plans
+**Plans**: 4 plans
 
 Plans:
 - [ ] 08-01: KeysetIdentity module with parse/format, null safety, and Hypothesis tests (KEY-01, KEY-02, KEY-04, KEY-05)
 - [ ] 08-02: Staging mapping models and SQL generation (STG-01, STG-02, STG-03, STG-04, KEY-03)
 - [ ] 08-03: Multi-source conflict resolution (STG-05)
+- [ ] 08-04: Gap closure -- wire keyset identity and column mappings into DML generation (KEY-03, STG-01, STG-04)
 
 ### Phase 9: XML Interoperability
 **Goal**: Users can round-trip specifications between YAML and the official Anchor Modeler XML format without silent data loss
