@@ -123,8 +123,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 09-01: XML import -- Anchor Modeler XML to YAML (INTOP-01)
-- [ ] 09-02: XML export with extension warnings and round-trip validation (INTOP-02, INTOP-03, INTOP-04)
+- [ ] 09-01-PLAN.md -- XML import: pydantic-xml models, import function, CLI `dab import` command (INTOP-01)
+- [ ] 09-02-PLAN.md -- XML export with extension warnings, XSD validation, and round-trip verification (INTOP-02, INTOP-03, INTOP-04)
 
 ### Phase 10: Northwind Reference Example
 **Goal**: A complete, runnable Northwind example validates every feature of the DAB generation pipeline end-to-end
@@ -162,4 +162,4 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 8.1 -> 9 -> 10
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-10 -- Phase 08.1 complete (2/2 plans, verification passed)*
+*Last updated: 2026-02-10 -- Phase 9 plans created (2 plans in 2 waves)*
