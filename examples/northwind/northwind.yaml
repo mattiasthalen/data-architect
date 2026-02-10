@@ -1,0 +1,328 @@
+# northwind.yaml - Northwind Specialty Foods Anchor Model
+#
+# This reference implementation demonstrates all v0.3.0 features of the Data Architect tool:
+# - Keyset identity with system/tenant encoding (entity@system~tenant|natural_key)
+# - Multi-source staging mappings with priority-based conflict resolution
+# - Temporal attributes with bitemporal columns (changed_at, recorded_at)
+# - Static attributes (no timeRange, no historization)
+# - Composite natural keys (OrderDetail tie with OrderID + ProductID)
+# - Knot references (Product → Category, Order → Shipper)
+# - Knots for low-cardinality reference data
+# - Ties for many-to-many relationships
+# - Staging column mappings for data lineage
+#
+# Business Context:
+# Northwind Traders is a specialty food import/export company. This model tracks
+# customers, orders, products, suppliers, employees, and shipping logistics across
+# multiple source systems (Northwind OData + SAP ERP).
+
+# ============================================================================
+# KNOTS: Low-cardinality reference data that rarely changes
+# ============================================================================
+
+knot:
+  # Category: Product categories (Beverages, Condiments, Confections, etc.)
+  # Modeled as knot because:
+  # - Low cardinality (~8 categories total)
+  # - Stable over time (category names don't change)
+  # - Referenced by multiple products
+  # - No temporal attributes needed
+  - mnemonic: CAT
+    descriptor: Category
+    identity: int
+    dataRange: varchar(15)
+
+  # Shipper: Shipping companies (Federal Shipping, United Package, Speedy Express)
+  # Modeled as knot because:
+  # - Very low cardinality (<10 shippers)
+  # - Company names are stable
+  # - Referenced by orders for shipment tracking
+  # - No history tracking needed
+  - mnemonic: SHP
+    descriptor: Shipper
+    identity: int
+    dataRange: varchar(40)
+
+# ============================================================================
+# ANCHORS: Core business entities with identity and attributes
+# ============================================================================
+
+anchor:
+  # Customer: Companies that place orders
+  # Modeled as anchor because:
+  # - Core business entity with unique identity
+  # - Has temporal attributes (company names change due to rebrands/acquisitions)
+  # - Has static attributes (country)
+  # - Multiple attributes track different aspects
+  - mnemonic: CU
+    descriptor: Customer
+    identity: varchar(5)  # Northwind uses ALFKI, ANATR-style customer codes
+    attribute:
+      # Customer name changes over time (rebranding, acquisitions, mergers)
+      - mnemonic: NAM
+        descriptor: Name
+        timeRange: datetime  # Historized: track when company name changed
+        dataRange: varchar(40)
+      # Contact person changes over time (personnel turnover)
+      - mnemonic: CNT
+        descriptor: ContactName
+        timeRange: datetime  # Historized: track contact changes
+        dataRange: varchar(30)
+      # Country is static - companies rarely relocate to different countries
+      - mnemonic: COU
+        descriptor: Country
+        dataRange: varchar(15)  # No timeRange: static attribute
+    # Staging from Northwind OData Customers entity
+    staging_mappings:
+      - system: northwind
+        tenant: default
+        table: stg_northwind_customers
+        natural_key_columns:
+          - CustomerID  # Single-column natural key
+        columns:
+          - name: CustomerID
+            type: varchar(5)
+          - name: CompanyName
+            type: varchar(40)
+          - name: ContactName
+            type: varchar(30)
+          - name: Country
+            type: varchar(15)
+        column_mappings:
+          CU_NAM: CompanyName
+          CU_CNT: ContactName
+          CU_COU: Country
+
+  # Product: Items available for sale
+  # Modeled as anchor because:
+  # - Core business entity with unique identity
+  # - Has temporal attributes (prices change, stock levels fluctuate)
+  # - Multi-source: Products come from both Northwind and SAP systems
+  # - Demonstrates priority-based conflict resolution
+  - mnemonic: PR
+    descriptor: Product
+    identity: int
+    attribute:
+      # Product name can change over time (rebranding, package updates)
+      - mnemonic: NAM
+        descriptor: Name
+        timeRange: datetime  # Historized: track product name changes
+        dataRange: varchar(40)
+      # Unit price changes frequently (pricing adjustments, promotions)
+      - mnemonic: PRC
+        descriptor: UnitPrice
+        timeRange: datetime  # Historized: track price history
+        dataRange: money
+      # Stock levels change continuously (sales, restocking)
+      - mnemonic: STK
+        descriptor: UnitsInStock
+        timeRange: datetime  # Historized: track inventory changes
+        dataRange: smallint
+      # Category reference using knot - category assignment can change
+      - mnemonic: CAT
+        descriptor: Category
+        timeRange: datetime  # Historized: products can be recategorized
+        knotRange: CAT  # Reference to Category knot (not dataRange)
+    # MULTI-SOURCE STAGING: Products from Northwind (priority 1) and SAP (priority 2)
+    # Conflict resolution: Lower priority wins, so Northwind data overrides SAP data
+    staging_mappings:
+      # Source 1: Northwind system (primary source)
+      - system: northwind
+        tenant: default
+        table: stg_northwind_products
+        priority: 1  # Lower priority = higher precedence
+        natural_key_columns:
+          - ProductID
+        columns:
+          - name: ProductID
+            type: int
+          - name: ProductName
+            type: varchar(40)
+          - name: UnitPrice
+            type: money
+          - name: UnitsInStock
+            type: smallint
+          - name: CategoryID
+            type: int
+        column_mappings:
+          PR_NAM: ProductName
+          PR_PRC: UnitPrice
+          PR_STK: UnitsInStock
+          PR_CAT: CategoryID
+      # Source 2: SAP system (fallback source)
+      - system: sap
+        tenant: default
+        table: stg_sap_materials
+        priority: 2  # Higher priority = fallback if Northwind missing
+        natural_key_columns:
+          - MaterialID
+        columns:
+          - name: MaterialID
+            type: int
+          - name: MaterialName
+            type: varchar(40)
+          - name: StandardPrice
+            type: money
+          - name: AvailableStock
+            type: smallint
+          - name: ProductCategory
+            type: int
+        column_mappings:
+          PR_NAM: MaterialName
+          PR_PRC: StandardPrice
+          PR_STK: AvailableStock
+          PR_CAT: ProductCategory
+
+  # Order: Customer purchase orders
+  # Modeled as anchor because:
+  # - Core transactional entity with unique identity
+  # - Has static attributes (dates and freight don't change after order placed)
+  # - References Shipper knot
+  - mnemonic: OR
+    descriptor: Order
+    identity: int
+    attribute:
+      # Order date is static - when order was placed (doesn't change)
+      - mnemonic: DAT
+        descriptor: OrderDate
+        dataRange: datetime  # No timeRange: static
+      # Shipped date is static - when order was shipped (doesn't change)
+      - mnemonic: SHD
+        descriptor: ShippedDate
+        dataRange: datetime  # No timeRange: static
+      # Freight cost is static - cost doesn't change after shipping
+      - mnemonic: FRT
+        descriptor: Freight
+        dataRange: money  # No timeRange: static
+      # Shipper reference using knot - which company shipped the order
+      - mnemonic: SHP
+        descriptor: ShipVia
+        knotRange: SHP  # Reference to Shipper knot
+    staging_mappings:
+      - system: northwind
+        tenant: default
+        table: stg_northwind_orders
+        natural_key_columns:
+          - OrderID
+        columns:
+          - name: OrderID
+            type: int
+          - name: OrderDate
+            type: datetime
+          - name: ShippedDate
+            type: datetime
+          - name: Freight
+            type: money
+          - name: ShipVia
+            type: int
+        column_mappings:
+          OR_DAT: OrderDate
+          OR_SHD: ShippedDate
+          OR_FRT: Freight
+          OR_SHP: ShipVia
+
+  # Employee: Company staff members
+  # Modeled as anchor because:
+  # - Core HR entity with unique identity
+  # - Has temporal attributes (names, titles, managers change)
+  # - Has static attributes (hire date)
+  - mnemonic: EM
+    descriptor: Employee
+    identity: int
+    attribute:
+      # Last name can change over time (marriage, legal name change)
+      - mnemonic: NAM
+        descriptor: LastName
+        timeRange: datetime  # Historized: track name changes
+        dataRange: varchar(20)
+      # Title changes over time (promotions, role changes)
+      - mnemonic: TTL
+        descriptor: Title
+        timeRange: datetime  # Historized: track career progression
+        dataRange: varchar(30)
+      # Hire date is static - when employee was hired (doesn't change)
+      - mnemonic: HRD
+        descriptor: HireDate
+        dataRange: datetime  # No timeRange: static
+      # Manager can change over time (org restructuring)
+      - mnemonic: MGR
+        descriptor: ReportsTo
+        timeRange: datetime  # Historized: track reporting structure changes
+        dataRange: int  # References another Employee identity
+    staging_mappings:
+      - system: northwind
+        tenant: default
+        table: stg_northwind_employees
+        natural_key_columns:
+          - EmployeeID
+        columns:
+          - name: EmployeeID
+            type: int
+          - name: LastName
+            type: varchar(20)
+          - name: Title
+            type: varchar(30)
+          - name: HireDate
+            type: datetime
+          - name: ReportsTo
+            type: int
+        column_mappings:
+          EM_NAM: LastName
+          EM_TTL: Title
+          EM_HRD: HireDate
+          EM_MGR: ReportsTo
+
+  # Supplier: Companies that provide products
+  # Modeled as anchor because:
+  # - Core business entity with unique identity
+  # - Has temporal attributes (company names, contact info change)
+  - mnemonic: SU
+    descriptor: Supplier
+    identity: int
+    attribute:
+      # Supplier company name can change (rebranding, acquisitions)
+      - mnemonic: NAM
+        descriptor: CompanyName
+        timeRange: datetime  # Historized: track name changes
+        dataRange: varchar(40)
+      # Contact name changes over time (personnel changes)
+      - mnemonic: CNT
+        descriptor: ContactName
+        timeRange: datetime  # Historized: track contact person changes
+        dataRange: varchar(30)
+    staging_mappings:
+      - system: northwind
+        tenant: default
+        table: stg_northwind_suppliers
+        natural_key_columns:
+          - SupplierID
+        columns:
+          - name: SupplierID
+            type: int
+          - name: CompanyName
+            type: varchar(40)
+          - name: ContactName
+            type: varchar(30)
+        column_mappings:
+          SU_NAM: CompanyName
+          SU_CNT: ContactName
+
+# ============================================================================
+# TIES: Many-to-many relationships between entities
+# ============================================================================
+
+tie:
+  # OrderDetail: Which products were included in which orders
+  # Modeled as tie because:
+  # - Many-to-many relationship (one order has many products, one product in many orders)
+  # - Demonstrates composite identifier: Both Order and Product are identifier roles
+  # - Both roles must exist for the relationship to be meaningful
+  # Purpose: Captures which products were ordered in each order
+  # Note: In real implementation, OrderDetail data would be loaded through the anchor entities
+  - role:
+      - role: for
+        type: OR
+        identifier: true  # Part of tie identity
+      - role: contains
+        type: PR
+        identifier: true  # Part of tie identity
