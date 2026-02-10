@@ -5,6 +5,7 @@ import sqlglot.expressions as sge
 
 from data_architect.generation.columns import (
     build_bitemporal_columns,
+    build_keyset_column,
     build_metadata_columns,
 )
 from data_architect.generation.naming import (
@@ -17,6 +18,7 @@ from data_architect.generation.naming import (
 from data_architect.models.anchor import Anchor, Attribute
 from data_architect.models.knot import Knot
 from data_architect.models.spec import Spec
+from data_architect.models.staging import StagingMapping
 from data_architect.models.tie import Tie
 
 
@@ -197,7 +199,11 @@ def build_tie_table(tie: Tie, dialect: str) -> sge.Create:
 
 
 def build_staging_table(
-    name: str, columns: list[tuple[str, str]], dialect: str
+    name: str,
+    columns: list[tuple[str, str]],
+    dialect: str,
+    anchor: Anchor | None = None,
+    mapping: StagingMapping | None = None,
 ) -> sge.Create:
     """Build CREATE TABLE statement for a staging table.
 
@@ -205,6 +211,8 @@ def build_staging_table(
         name: Table name
         columns: List of (column_name, column_type) tuples
         dialect: Target SQL dialect (e.g., "postgres", "snowflake", "tsql")
+        anchor: Optional anchor model for keyset column generation
+        mapping: Optional staging mapping for keyset column generation
 
     Returns:
         SQLGlot Create AST node with IF NOT EXISTS
@@ -220,7 +228,11 @@ def build_staging_table(
             )
         )
 
-    # 2. Metadata columns (always present)
+    # 2. Keyset computed column (when anchor context available)
+    if anchor is not None and mapping is not None:
+        column_defs.append(build_keyset_column(anchor, mapping, dialect))
+
+    # 3. Metadata columns (always present)
     column_defs.extend(build_metadata_columns(dialect))
 
     return sge.Create(
@@ -272,7 +284,9 @@ def generate_all_ddl(spec: Spec, dialect: str) -> dict[str, str]:
         output[filename] = ast.sql(dialect=dialect, pretty=True)
 
     # 4. Staging tables (GEN-10: from anchor.staging_mappings)
-    staging_tables: dict[str, tuple[str, list[tuple[str, str]]]] = {}
+    staging_tables: dict[
+        str, tuple[str, Anchor, StagingMapping, list[tuple[str, str]]]
+    ] = {}
 
     for anchor in spec.anchors:
         if anchor.staging_mappings:
@@ -280,12 +294,14 @@ def generate_all_ddl(spec: Spec, dialect: str) -> dict[str, str]:
                 table = staging_table_name(mapping)
                 # Extract columns from mapping model
                 columns = [(col.name, col.type) for col in mapping.columns]
-                staging_tables[table] = (table, columns)
+                staging_tables[table] = (table, anchor, mapping, columns)
 
     # Generate staging DDL in sorted order
     for table in sorted(staging_tables.keys()):
-        name, columns = staging_tables[table]
-        ast = build_staging_table(name, columns, dialect)
+        name, anchor_ref, mapping_ref, columns = staging_tables[table]
+        ast = build_staging_table(
+            name, columns, dialect, anchor=anchor_ref, mapping=mapping_ref
+        )
         filename = f"{name}.sql"
         output[filename] = ast.sql(dialect=dialect, pretty=True)
 

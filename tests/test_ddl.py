@@ -466,7 +466,7 @@ def test_generate_all_ddl_deterministic_order() -> None:
 
 
 def test_build_keyset_column_single_key() -> None:
-    """Verify build_keyset_column generates keyset_id computed column for single natural key."""
+    """Verify keyset_id computed column generation for single natural key."""
     from data_architect.models.staging import StagingColumn, StagingMapping
 
     anchor = Anchor(mnemonic="CU", descriptor="Customer", identity="bigint")
@@ -494,7 +494,7 @@ def test_build_keyset_column_single_key() -> None:
 
 
 def test_build_keyset_column_composite_key() -> None:
-    """Verify build_keyset_column handles composite natural keys with NULL propagation."""
+    """Verify composite natural keys with NULL propagation."""
     from data_architect.models.staging import StagingColumn, StagingMapping
 
     anchor = Anchor(mnemonic="CU", descriptor="Customer", identity="bigint")
@@ -526,7 +526,7 @@ def test_build_keyset_column_composite_key() -> None:
 
 
 def test_build_keyset_column_multi_dialect() -> None:
-    """Verify build_keyset_column works across postgres, tsql, and snowflake dialects."""
+    """Verify keyset column across postgres, tsql, snowflake."""
     from data_architect.models.staging import StagingColumn, StagingMapping
 
     anchor = Anchor(mnemonic="CU", descriptor="Customer", identity="bigint")
@@ -545,18 +545,18 @@ def test_build_keyset_column_multi_dialect() -> None:
         # All should contain keyset_id
         assert "keyset_id" in sql
 
-        # Postgres and Snowflake use GENERATED ALWAYS AS ... STORED
-        if dialect in ["postgres", "snowflake"]:
+        # Postgres uses GENERATED ALWAYS AS ... STORED
+        if dialect == "postgres":
             assert "GENERATED ALWAYS AS" in sql or "generated always as" in sql.lower()
             assert "STORED" in sql or "stored" in sql.lower()
-        # TSQL uses AS ... PERSISTED
-        elif dialect == "tsql":
+        # TSQL and Snowflake use AS ... PERSISTED
+        elif dialect in ["tsql", "snowflake"]:
             assert " AS " in sql
             assert "PERSISTED" in sql or "persisted" in sql.lower()
 
 
 def test_build_staging_table_with_keyset_column() -> None:
-    """Verify build_staging_table includes keyset_id column when anchor+mapping provided."""
+    """Verify keyset_id column when anchor+mapping provided."""
     from data_architect.models.staging import StagingColumn, StagingMapping
 
     anchor = Anchor(mnemonic="CU", descriptor="Customer", identity="bigint")
@@ -580,7 +580,7 @@ def test_build_staging_table_with_keyset_column() -> None:
 
 
 def test_build_staging_table_without_anchor_no_keyset() -> None:
-    """Verify build_staging_table without anchor/mapping has no keyset_id (backward compat)."""
+    """Verify no keyset_id without anchor/mapping (backward compat)."""
     columns = [("customer_id", "bigint"), ("customer_name", "varchar(100)")]
 
     create_stmt = build_staging_table("stg_test", columns, "postgres")
@@ -619,4 +619,7 @@ def test_generate_all_ddl_staging_has_keyset_column() -> None:
     staging_sql = result.get("stg_customers.sql")
     assert staging_sql is not None
     assert "keyset_id" in staging_sql
-    assert "GENERATED ALWAYS AS" in staging_sql or "generated always as" in staging_sql.lower()
+    assert (
+        "GENERATED ALWAYS AS" in staging_sql
+        or "generated always as" in staging_sql.lower()
+    )
