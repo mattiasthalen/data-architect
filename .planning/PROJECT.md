@@ -26,25 +26,23 @@ The DAB layer must produce a correct, methodology-compliant Anchor Model through
 - ✓ Pre-commit framework with `.pre-commit-config.yaml` calling `make check` — v0.2.0
 - ✓ Conventional commit validation via pre-commit hook — v0.2.0
 - ✓ `make bootstrap` installs pre-commit framework hooks — v0.2.0
+- ✓ YAML spec format extending official anchor.xsd with staging table mappings and keyset identity — v0.3.0
+- ✓ `architect dab init` scaffolds blank spec template with inline comments — v0.3.0
+- ✓ `architect dab generate` produces idempotent SQL per entity (raw SQL or Bruin format) — v0.3.0
+- ✓ `architect dab import` converts official Anchor XML → YAML — v0.3.0
+- ✓ `architect dab export` converts YAML → official Anchor XML with extension warnings — v0.3.0
+- ✓ Keyset identity scheme: `entity@system~tenant|natural_key` with single source of truth in staging DDL — v0.3.0
+- ✓ Multi-source support: same anchor fed by multiple staging tables/systems with priority-based ordering — v0.3.0
+- ✓ Northwind reference example with 35 E2E tests validating entire pipeline — v0.3.0
+- ✓ Database-agnostic SQL generation (postgres, tsql, snowflake dialects) — v0.3.0
+- ✓ SQLGlot AST-based generation producing idempotent DDL/DML — v0.3.0
+- ✓ Bitemporal columns (changed_at, recorded_at) and metadata columns in all tables — v0.3.0
+- ✓ Deterministic SQL output (byte-identical on repeat runs) — v0.3.0
+- ✓ XML round-trip validation (XML→YAML→XML equivalence) — v0.3.0
 
 ### Active
 
-See REQUIREMENTS.md for detailed v0.3.0 requirements.
-
-**Current Milestone: v0.3.0 DAB Generation**
-
-**Goal:** Define a YAML specification format (superset of official Anchor XML) and generate idempotent DAB loading scripts from it.
-
-**Target features:**
-- YAML spec format extending official anchor.xsd with staging table mappings and keyset identity
-- `architect dab init` scaffolds blank spec template
-- `architect dab generate` produces idempotent SQL per entity (Bruin assets or raw SQL)
-- `architect dab import` converts official Anchor XML → YAML
-- `architect dab export` converts YAML → official Anchor XML
-- Keyset identity scheme: `entity@system~tenant|natural_key`
-- Multi-source support: same anchor fed by multiple staging tables/systems
-- Northwind OData as reference example and test case
-- Database-agnostic SQL generation (dialect-aware)
+**Current Focus:** Planning next milestone (v0.4.0 or beyond)
 
 ### Deferred (v0.4.0+)
 
@@ -165,11 +163,16 @@ See REQUIREMENTS.md for detailed v0.3.0 requirements.
 | language: system for make-check hook | Make check needs full project environment access | ✓ Good — v0.2.0 |
 | Skills route through data-architect agent | Single orchestration point, consistent entry | ✓ Good — v0.1.0 |
 | Bounded iteration debate (5 rounds max) | Prevents infinite loops, forces convergence or user escalation | ✓ Good — v0.1.0 |
-| DAB before DAS/DAR | DAB is the core methodology layer — prove the spec format and generation before mechanical layers | — Pending |
-| YAML superset of official Anchor XML | Interoperability with official tooling while extending for staging/keyset needs | — Pending |
-| Keyset identity over surrogate integers | Encodes source provenance (system + tenant) in the key itself, enables multi-source merging | — Pending |
-| Bruin as v1 output format | Modern data pipeline tool with materialization strategies matching anchor patterns (merge, SCD2) | — Pending |
-| Northwind as reference example | Well-known schema, OData metadata available, good mix of entity types and relationships | — Pending |
+| DAB before DAS/DAR | DAB is the core methodology layer — prove the spec format and generation before mechanical layers | ✓ Good — v0.3.0 shipped |
+| YAML superset of official Anchor XML | Interoperability with official tooling while extending for staging/keyset needs | ✓ Good — v0.3.0, XML import/export working |
+| Keyset identity over surrogate integers | Encodes source provenance (system + tenant) in the key itself, enables multi-source merging | ✓ Good — v0.3.0, computed column pattern |
+| Bruin as v1 output format | Modern data pipeline tool with materialization strategies matching anchor patterns (merge, SCD2) | ✓ Good — v0.3.0, raw and bruin formatters |
+| Northwind as reference example | Well-known schema, OData metadata available, good mix of entity types and relationships | ✓ Good — v0.3.0, 35 E2E tests |
+| SQLGlot for AST-based SQL generation | Type-safe SQL construction, multi-dialect transpilation, avoids string templating fragility | ✓ Good — v0.3.0, all DDL/DML via AST |
+| Pydantic frozen models for spec | Type safety, immutability, validation, three-layer schema metadata | ✓ Good — v0.3.0, 97% coverage |
+| Staging keyset single source of truth (Phase 8.1 insertion) | Compute keyset once in DDL, reference in DML — 89.8% expression length reduction | ✓ Good — v0.3.0, cleaner SQL |
+| pydantic-xml for XML interop | Type-safe XML parsing matching Pydantic pattern, official anchor.xsd compatibility | ✓ Good — v0.3.0, 58 XML tests pass |
+| Hypothesis property-based testing for keyset | 200+ examples validate round-trip parse/format with delimiter escaping edge cases | ✓ Good — v0.3.0, zero crashes |
 
 ---
-*Last updated: 2026-02-09 after v0.3.0 milestone start*
+*Last updated: 2026-02-10 after v0.3.0 milestone completion*

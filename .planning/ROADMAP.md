@@ -2,9 +2,9 @@
 
 ## Milestones
 
-- SHIPPED **v0.1.0 Init + Agents** -- Phases 1-4 (shipped 2026-02-08)
-- SHIPPED **v0.2.0 Pre-commit Framework** -- Phase 5 (shipped 2026-02-09)
-- ACTIVE **v0.3.0 DAB Generation** -- Phases 6-10 (in progress)
+- ✅ **v0.1.0 Init + Agents** — Phases 1-4 (shipped 2026-02-08)
+- ✅ **v0.2.0 Pre-commit Framework** — Phase 5 (shipped 2026-02-09)
+- ✅ **v0.3.0 DAB Generation** — Phases 6-10 (shipped 2026-02-10)
 
 ## Phases
 
@@ -27,116 +27,27 @@ See: `.planning/milestones/v0.1.0-ROADMAP.md` for full details.
 </details>
 
 <details>
-<summary>SHIPPED v0.2.0 Pre-commit Framework (Phase 5) -- SHIPPED 2026-02-09</summary>
+<summary>✅ v0.2.0 Pre-commit Framework (Phase 5) — SHIPPED 2026-02-09</summary>
 
-- [x] Phase 5: Pre-commit Framework Migration (1/1 plan) -- completed 2026-02-08
+- [x] Phase 5: Pre-commit Framework Migration (1/1 plan) — completed 2026-02-08
 
 See: `.planning/milestones/v0.2.0-ROADMAP.md` for full details.
 
 </details>
 
-### ACTIVE v0.3.0 DAB Generation (Phases 6-10)
+<details>
+<parameter name="new_string"><summary>✅ v0.3.0 DAB Generation (Phases 6-10) — SHIPPED 2026-02-10</summary>
 
-**Milestone Goal:** Define a YAML specification format (superset of official Anchor XML) and generate idempotent, dialect-agnostic SQL from it using SQLGlot ASTs. Deliver keyset identity, multi-source staging, XML interoperability, and a Northwind reference example that validates everything end-to-end.
+- [x] Phase 6: YAML Schema Foundation and Spec Validation (3/3 plans) — completed 2026-02-09
+- [x] Phase 7: SQL Generation Engine (3/3 plans) — completed 2026-02-09
+- [x] Phase 8: Keyset Identity and Staging Mappings (4/4 plans) — completed 2026-02-10
+- [x] Phase 8.1: Staging Keyset Single Source of Truth (2/2 plans) — completed 2026-02-10 (INSERTED)
+- [x] Phase 9: XML Interoperability (2/2 plans) — completed 2026-02-10
+- [x] Phase 10: Northwind Reference Example (1/1 plan) — completed 2026-02-10
 
-- [x] **Phase 6: YAML Schema Foundation and Spec Validation** - Pydantic models, YAML parsing, validation with line numbers, `dab init` scaffold
-- [x] **Phase 7: SQL Generation Engine** - SQLGlot AST-based generation, idempotent DDL/DML, bitemporality, multi-dialect compilation, output formats
-- [x] **Phase 8: Keyset Identity and Staging Mappings** - Keyset parse/format module, staging column mappings, multi-source loading, conflict resolution
-- [x] **Phase 8.1: Staging Keyset Single Source of Truth** - Move keyset identity computation into staging tables so it's computed once at load time (INSERTED)
-- [x] **Phase 9: XML Interoperability** - Import from Anchor Modeler XML, export with extension warnings, round-trip validation
-- [ ] **Phase 10: Northwind Reference Example** - Pre-filled spec, end-to-end validation of all features
+See: `.planning/milestones/v0.3.0-ROADMAP.md` for full details.
 
-## Phase Details
-
-### Phase 6: YAML Schema Foundation and Spec Validation
-**Goal**: Users can define a valid Anchor Model specification in YAML and get immediate, precise feedback on errors
-**Depends on**: Phase 5 (project infrastructure)
-**Requirements**: SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-05, SPEC-06, SPEC-07
-**Success Criteria** (what must be TRUE):
-  1. Running `architect dab init` creates a YAML spec file with inline comments explaining every section (anchors, attributes, ties, knots, staging mappings, keyset identity)
-  2. A valid YAML spec loads into frozen Pydantic models without error, and an invalid spec produces validation errors citing the exact line number of each problem
-  3. Referential integrity violations are caught -- an attribute referencing a nonexistent anchor, a tie referencing an undefined knot, or a duplicate mnemonic all produce clear errors
-  4. The three-layer schema is enforced -- XML-compatible core fields, YAML extension fields, and export-incompatible markers are distinguishable in the model structure
-  5. Mnemonic collisions are detected deterministically (sorted by name) with explicit override support in YAML
-**Plans**: 3 plans
-
-Plans:
-- [x] 06-01-PLAN.md -- Pydantic frozen models with three-layer schema for anchor.xsd superset (SPEC-01, SPEC-05, SPEC-06)
-- [x] 06-02-PLAN.md -- Spec validation engine with line numbers and referential integrity (SPEC-03, SPEC-04, SPEC-07)
-- [x] 06-03-PLAN.md -- CLI `dab init` scaffold command with commented YAML template (SPEC-02)
-
-### Phase 7: SQL Generation Engine
-**Goal**: Users can generate correct, idempotent, bitemporal SQL for any supported dialect from a valid YAML spec
-**Depends on**: Phase 6
-**Requirements**: GEN-01, GEN-02, GEN-03, GEN-04, GEN-05, GEN-06, GEN-07, GEN-08, GEN-09, GEN-10
-**Success Criteria** (what must be TRUE):
-  1. Running `architect dab generate` on a valid spec produces one SQL file per entity (anchor with its attributes, each tie, each knot) plus staging table DDL in the output directory
-  2. Generated DDL is idempotent -- running it twice against a database produces no errors and no duplicate objects (CREATE TABLE IF NOT EXISTS or equivalent)
-  3. Generated DML uses MERGE/UPSERT patterns that are safe to re-run, with dialect-appropriate syntax (ON CONFLICT for PostgreSQL, MERGE for SQL Server/Snowflake)
-  4. Every generated table includes bitemporal columns (`changed_at` for valid time, `recorded_at` for transaction time) and metadata columns (`metadata_recorded_at`, `metadata_recorded_by`, `metadata_id`)
-  5. Running generation twice on the same spec produces byte-identical output -- no timestamps, UUIDs, or nondeterminism (git-friendly)
-  6. `--format raw` produces plain SQL files; `--format bruin` produces SQL with Bruin YAML frontmatter (materialization strategies: merge for historized, view for current state)
-**Plans**: 3 plans
-
-Plans:
-- [x] 07-01: SQLGlot AST builders for DDL -- anchors, attributes, ties, knots, staging tables (GEN-01, GEN-02, GEN-03, GEN-04, GEN-06, GEN-07, GEN-08, GEN-10)
-- [x] 07-02: SQLGlot AST builders for DML -- MERGE/UPSERT loading patterns (GEN-05)
-- [x] 07-03: CLI `dab generate` command with format and dialect flags (GEN-09)
-
-### Phase 8: Keyset Identity and Staging Mappings
-**Goal**: Users can define multi-source staging mappings with keyset identity and generate loading SQL that tracks data provenance
-**Depends on**: Phase 7
-**Requirements**: KEY-01, KEY-02, KEY-03, KEY-04, KEY-05, STG-01, STG-02, STG-03, STG-04, STG-05
-**Success Criteria** (what must be TRUE):
-  1. The `KeysetIdentity` module can parse `entity@system~tenant|natural_key` strings and format them back, surviving round-trips through Hypothesis property-based tests including delimiter-heavy inputs (`@@`, `~~`, `||`)
-  2. Generated SQL constructs keyset identity strings from staging source columns using the canonical format, with proper escaping of delimiters in natural key values and NULL propagation (if natural key is NULL, entire keyset is NULL)
-  3. A spec with multiple staging tables feeding the same anchor generates correct loading SQL for each source, with system and tenant identifiers embedded in the keyset
-  4. Column-level staging mappings (`staging_table.column` maps to `anchor.attribute`) produce INSERT...SELECT SQL with explicit column lineage
-  5. Conflict resolution strategy is declared per multi-source anchor in the YAML spec, and generated SQL applies deterministic ordering (explicit priority, then system name)
-**Plans**: 4 plans
-
-Plans:
-- [x] 08-01: KeysetIdentity module with parse/format, null safety, and Hypothesis tests (KEY-01, KEY-02, KEY-04, KEY-05)
-- [x] 08-02: Staging mapping models and SQL generation (STG-01, STG-02, STG-03, STG-04, KEY-03)
-- [x] 08-03: Multi-source conflict resolution (STG-05)
-- [x] 08-04: Gap closure -- wire keyset identity and column mappings into DML generation (KEY-03, STG-01, STG-04)
-
-### Phase 08.1: Staging keyset single source of truth (INSERTED)
-
-**Goal:** Keyset identity is computed once as a materialized column in staging tables (single source of truth), and all downstream anchor/attribute MERGE statements reference that column instead of recomputing the expression inline
-**Depends on:** Phase 8
-**Plans:** 2 plans
-
-Plans:
-- [x] 08.1-01-PLAN.md -- TDD: keyset_id computed column in staging DDL (build_keyset_column + staging table integration)
-- [x] 08.1-02-PLAN.md -- Simplify DML to reference staging keyset_id column instead of inline computation
-
-### Phase 9: XML Interoperability
-**Goal**: Users can round-trip specifications between YAML and the official Anchor Modeler XML format without silent data loss
-**Depends on**: Phase 6
-**Requirements**: INTOP-01, INTOP-02, INTOP-03, INTOP-04
-**Success Criteria** (what must be TRUE):
-  1. Running `architect dab import model.xml` converts an official Anchor Modeler XML file into a valid YAML spec, preserving all anchor.xsd elements losslessly
-  2. Running `architect dab export spec.yaml` converts a YAML spec into valid Anchor XML that passes lxml XSD validation against anchor.xsd
-  3. Export warns the user about YAML-only extensions (staging mappings, keyset identity) being dropped and requires `--force` to proceed
-  4. An XML file imported to YAML and exported back to XML produces equivalent XML for the XML-compatible core (round-trip validation)
-**Plans**: 2 plans
-
-Plans:
-- [x] 09-01-PLAN.md -- XML import: pydantic-xml models, import function, CLI `dab import` command (INTOP-01)
-- [x] 09-02-PLAN.md -- XML export with extension warnings, XSD validation, and round-trip verification (INTOP-02, INTOP-03, INTOP-04)
-
-### Phase 10: Northwind Reference Example
-**Goal**: A complete, runnable Northwind example validates every feature of the DAB generation pipeline end-to-end
-**Depends on**: Phase 8 (keyset + staging), Phase 9 (import/export)
-**Requirements**: NWND-01, NWND-02
-**Success Criteria** (what must be TRUE):
-  1. A pre-filled Northwind YAML spec exists covering Orders, Customers, Products, Employees, Suppliers, Categories, and Shippers with keyset identity and staging mappings from Northwind OData source
-  2. Running `architect dab generate` on the Northwind spec produces valid SQL that exercises all features: keyset construction, staging-to-anchor loading, bitemporal columns, metadata columns, idempotent DDL/DML, and deterministic output
-**Plans**: 1 plan
-
-Plans:
-- [x] 10-01-PLAN.md -- Northwind YAML spec with inline comments + E2E test suite for generation, determinism, and XML round-trip (NWND-01, NWND-02)
+</details>
 
 ---
 
@@ -162,4 +73,4 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 8.1 -> 9 -> 10
 
 ---
 *Roadmap created: 2026-02-07*
-*Last updated: 2026-02-10 -- Phase 10 complete (Northwind reference example, 1 plan executed, 35 E2E tests added)*
+*Last updated: 2026-02-10 after v0.3.0 milestone completion*
