@@ -6,6 +6,7 @@ import sqlglot.expressions as sge
 
 from data_architect.generation.columns import (
     build_bitemporal_columns,
+    build_keyset_column,
     build_metadata_columns,
 )
 from data_architect.generation.ddl import (
@@ -459,3 +460,163 @@ def test_generate_all_ddl_deterministic_order() -> None:
     # Values should be identical
     for filename in result1:
         assert result1[filename] == result2[filename]
+
+
+# --- Keyset Computed Column Tests ---
+
+
+def test_build_keyset_column_single_key() -> None:
+    """Verify build_keyset_column generates keyset_id computed column for single natural key."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    anchor = Anchor(mnemonic="CU", descriptor="Customer", identity="bigint")
+    mapping = StagingMapping(
+        system="ERP",
+        tenant="ACME",
+        table="stg_customers",
+        natural_key_columns=["CustomerID"],
+        columns=[StagingColumn(name="CustomerID", type="varchar(50)")],
+    )
+
+    col_def = build_keyset_column(anchor, mapping, "postgres")
+
+    # Should return a ColumnDef
+    assert isinstance(col_def, sge.ColumnDef)
+
+    # Generate SQL and verify structure
+    sql = col_def.sql(dialect="postgres")
+    assert "keyset_id" in sql
+    assert "VARCHAR(500)" in sql or "varchar(500)" in sql.lower()
+    assert "GENERATED ALWAYS AS" in sql or "generated always as" in sql.lower()
+    assert "STORED" in sql or "stored" in sql.lower()
+    # Should contain the keyset prefix: Customer@ERP~ACME
+    assert "Customer@ERP~ACME" in sql
+
+
+def test_build_keyset_column_composite_key() -> None:
+    """Verify build_keyset_column handles composite natural keys with NULL propagation."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    anchor = Anchor(mnemonic="CU", descriptor="Customer", identity="bigint")
+    mapping = StagingMapping(
+        system="SAP",
+        tenant="GLOBAL",
+        table="stg_sap_customers",
+        natural_key_columns=["MANDT", "KUNNR"],
+        columns=[
+            StagingColumn(name="MANDT", type="varchar(3)"),
+            StagingColumn(name="KUNNR", type="varchar(10)"),
+        ],
+    )
+
+    col_def = build_keyset_column(anchor, mapping, "postgres")
+
+    # Generate SQL and verify composite key handling
+    sql = col_def.sql(dialect="postgres")
+    assert "keyset_id" in sql
+    # Should contain CONCAT or equivalent
+    assert "CONCAT" in sql or "||" in sql
+    # Should contain ':' separator for composite key components
+    assert ":" in sql
+    # Should contain NULL propagation logic (CASE WHEN ... IS NULL)
+    assert "CASE" in sql or "case" in sql.lower()
+    assert "NULL" in sql
+    # Should contain keyset prefix
+    assert "Customer@SAP~GLOBAL" in sql
+
+
+def test_build_keyset_column_multi_dialect() -> None:
+    """Verify build_keyset_column works across postgres, tsql, and snowflake dialects."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    anchor = Anchor(mnemonic="CU", descriptor="Customer", identity="bigint")
+    mapping = StagingMapping(
+        system="ERP",
+        tenant="ACME",
+        table="stg_customers",
+        natural_key_columns=["CustomerID"],
+        columns=[StagingColumn(name="CustomerID", type="varchar(50)")],
+    )
+
+    for dialect in ["postgres", "tsql", "snowflake"]:
+        col_def = build_keyset_column(anchor, mapping, dialect)
+        sql = col_def.sql(dialect=dialect)
+
+        # All should contain keyset_id
+        assert "keyset_id" in sql
+
+        # Postgres and Snowflake use GENERATED ALWAYS AS ... STORED
+        if dialect in ["postgres", "snowflake"]:
+            assert "GENERATED ALWAYS AS" in sql or "generated always as" in sql.lower()
+            assert "STORED" in sql or "stored" in sql.lower()
+        # TSQL uses AS ... PERSISTED
+        elif dialect == "tsql":
+            assert " AS " in sql
+            assert "PERSISTED" in sql or "persisted" in sql.lower()
+
+
+def test_build_staging_table_with_keyset_column() -> None:
+    """Verify build_staging_table includes keyset_id column when anchor+mapping provided."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    anchor = Anchor(mnemonic="CU", descriptor="Customer", identity="bigint")
+    mapping = StagingMapping(
+        system="ERP",
+        tenant="ACME",
+        table="stg_customers",
+        natural_key_columns=["customer_id"],
+        columns=[StagingColumn(name="customer_id", type="bigint")],
+    )
+    columns = [("customer_id", "bigint"), ("customer_name", "varchar(100)")]
+
+    create_stmt = build_staging_table(
+        "stg_customers", columns, "postgres", anchor=anchor, mapping=mapping
+    )
+
+    sql = create_stmt.sql(dialect="postgres")
+    # Should contain keyset_id computed column
+    assert "keyset_id" in sql
+    assert "GENERATED ALWAYS AS" in sql or "generated always as" in sql.lower()
+
+
+def test_build_staging_table_without_anchor_no_keyset() -> None:
+    """Verify build_staging_table without anchor/mapping has no keyset_id (backward compat)."""
+    columns = [("customer_id", "bigint"), ("customer_name", "varchar(100)")]
+
+    create_stmt = build_staging_table("stg_test", columns, "postgres")
+
+    sql = create_stmt.sql(dialect="postgres")
+    # Should NOT contain keyset_id column
+    assert "keyset_id" not in sql
+
+
+def test_generate_all_ddl_staging_has_keyset_column() -> None:
+    """Verify generate_all_ddl includes keyset_id in staging table DDL."""
+    from data_architect.models.staging import StagingColumn, StagingMapping
+
+    anchor = Anchor(
+        mnemonic="CU",
+        descriptor="Customer",
+        identity="bigint",
+        staging_mappings=[
+            StagingMapping(
+                system="ERP",
+                tenant="ACME",
+                table="stg_customers",
+                natural_key_columns=["customer_id"],
+                columns=[
+                    StagingColumn(name="customer_id", type="bigint"),
+                    StagingColumn(name="customer_name", type="varchar(100)"),
+                ],
+            )
+        ],
+    )
+    spec = Spec(anchors=[anchor])
+
+    result = generate_all_ddl(spec, "postgres")
+
+    # Should contain staging table with keyset_id
+    staging_sql = result.get("stg_customers.sql")
+    assert staging_sql is not None
+    assert "keyset_id" in staging_sql
+    assert "GENERATED ALWAYS AS" in staging_sql or "generated always as" in staging_sql.lower()
